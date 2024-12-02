@@ -191,6 +191,7 @@ class Dungeon
 	void collapse_tunnels(int p, std::map<std::string, CloseEnd> close_end);
 	void collapse(int r, int c, std::map<std::string, CloseEnd> xc);
 	bool check_tunnel(int r, int c, CloseEnd xc);
+	void empty_blocks();
 
 public:
 	Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent);
@@ -794,7 +795,7 @@ void Dungeon::clean_dungeon()
 		collapse_tunnels(deadends_percent, close_ends);
 	}
 	fix_doors();
-	//TODO: empty_blocks();
+	empty_blocks();
 }
 
 void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd> xc)
@@ -890,6 +891,20 @@ void Dungeon::fix_doors()
 			} else
 			{
 				room.second->door[dir.first].clear();
+			}
+		}
+	}
+}
+
+void Dungeon::empty_blocks()
+{
+	for (int r = 0; r <= n_rows; r++)
+	{
+		for (int c = 0; c <= n_cols; c++)
+		{
+			if (cell->get(r, c) & BLOCKED)
+			{
+				cell->set(r, c, NOTHING);
 			}
 		}
 	}
