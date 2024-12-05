@@ -1,11 +1,14 @@
-#include "Relics/Public/DungeonGenerator.h"
+#include "DungeonGenerator.h"
 #include <cstdlib>
 #include <ctime>
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 #include <cmath>
+#include <algorithm>
+#include <iostream>
 
 enum
 {
@@ -46,78 +49,74 @@ std::map<std::string, std::string> opposite =
 };
 
 template <typename T>
-class TwoDArray
+TwoDArray<T>::TwoDArray(int r, int c) : rows(r), cols(c), data(new T[r * c])
 {
-	T* data;
-	int cols;
+}
+template <typename T>
+TwoDArray<T>::~TwoDArray()
+{
+	delete[] data;
+}
 
-public:
-	TwoDArray(int r, int c) : cols(c), data(new T[r * c])
-	{
-	}
-
-	~TwoDArray()
-	{
-		delete[] data;
-	}
-
-	T& get(int i, int j)
-	{
+template <typename T>
+T& TwoDArray<T>::get(int i, int j)
+{
+	if (0 <= i && i < rows && 0 <= j && j < cols) {
 		return data[i * cols + j];
 	}
+	return nil;
+}
 
-	void set(int i, int j, T val)
-	{
-		data[i * cols + j] = val;
-	}
-};
-
-class CloseEnd
+template <typename T>
+void TwoDArray<T>::set(int i, int j, T val)
 {
-public:
-	std::vector<std::pair<int, int>> walled;
-	std::vector<std::pair<int, int>> close;
-	std::pair<int, int> recurse;
-	CloseEnd(std::vector<std::pair<int, int>> walled, std::vector<std::pair<int, int>> close,
-	         std::pair<int, int> recurse);
-};
+	if (0 <= i && i < rows && 0 <= j && j < cols) {
+		data[i * cols + j] = val;
+		return;
+	}
+	return;
+}
+
+template <typename T>
+void TwoDArray<T>::fill(const T& val) {
+	for (int i = 0; i < rows; i++) {
+		for (int j = 0; j < cols; j++) {
+			data[i * cols + j] = val;
+		}
+	}
+}
 
 CloseEnd::CloseEnd(std::vector<std::pair<int, int>> walled, std::vector<std::pair<int, int>> close,
                    std::pair<int, int> recurse)
-	: walled(walled), close(close), recurse(recurse)
+	: walled(std::move(walled)), close(std::move(close)), recurse(recurse)
+{
+}
+CloseEnd::CloseEnd(const CloseEnd& other)
+	: walled(other.walled), close(other.close), recurse(other.recurse)
+{
+}
+CloseEnd::CloseEnd()
+	: walled(std::vector<std::pair<int, int>>()), close(std::vector<std::pair<int, int>>()), recurse(std::make_pair(0, 0))
 {
 }
 
-class Door
-{
-public:
-	int row;
-	int col;
-	std::string key;
-	std::string type;
-	int out_id;
-	Door(int row, int col, std::string key, std::string type, int out_id);
-};
-
-Door::Door(int row, int col, std::string key, std::string type, int out_id)
-	: row(row), col(col), key(key), type(type), out_id(out_id)
+Door::Door(int row, int col, std::string key, std::string type, unsigned int out_id)
+	: row(row), col(col), key(std::move(key)), type(std::move(type)), out_id(out_id)
 {
 }
 
-class Sill
-{
-public:
-	int sill_r;
-	int sill_c;
-	std::string dir;
-	int door_r;
-	int door_c;
-	int out_id;
-	Sill(int sill_r, int sill_c, std::string dir, int door_r, int door_c, int out_id);
-};
+void Door::print(TwoDArray<char> &out, std::string dir) const {
+	if (dir == "north") {
+		out.set(row+1, col, key.at(0));
+	} else if (dir == "west") {
+		out.set(row, col+1, key.at(0));
+	} else {
+		out.set(row, col, key.at(0));
+	}
+}
 
-Sill::Sill(int sill_r, int sill_c, std::string dir, int door_r, int door_c, int out_id)
-	: sill_r(sill_r), sill_c(sill_c), dir(dir), door_r(door_r), door_c(door_c), out_id(out_id)
+Sill::Sill(int sill_r, int sill_c, std::string dir, int door_r, int door_c, unsigned int out_id)
+	: sill_r(sill_r), sill_c(sill_c), dir(std::move(dir)), door_r(door_r), door_c(door_c), out_id(out_id)
 {
 }
 
@@ -126,84 +125,49 @@ int random_in_range(int min, int max)
 	return std::rand() % (max - min + 1) + min;
 }
 
-class DungeonRoom
-{
-public:
-	DungeonRoom(int id, int row, int col, int north, int south, int west, int east, int height, int width, int area);
-	int id;
-	int row;
-	int col;
-	int north;
-	int south;
-	int west;
-	int east;
-	int height;
-	int width;
-	int area;
-	std::map<std::string, std::vector<Door>> door;
-};
-
-DungeonRoom::DungeonRoom(int id, int row, int col, int north, int south, int west, int east, int height, int width,
+DungeonRoom::DungeonRoom(unsigned int id, int row, int col, int north, int south, int west, int east, int height, int width,
                          int area)
 	: id(id), row(row), col(col), north(north), south(south), west(west), east(east), height(height), width(width),
-	  area(area), door(std::map<std::string, std::vector<Door>>())
+	  area(area), doors(std::map<std::string, std::vector<Door>>())
 {
 }
 
-class Dungeon
-{
-	int n_rows;
-	int n_cols;
-	int n_i;
-	int n_j;
-	int max_row;
-	int max_col;
-	int n_rooms;
-	int room_base;
-	int room_radix;
-	int room_min;
-	int room_max;
-	int seed;
-	int deadends_percent;
-	std::map<int, DungeonRoom*> rooms;
-	std::vector<std::pair<int, int>> connections;
-	TwoDArray<int>* cell;
-	std::map<std::string, CloseEnd> close_ends;
-	std::vector<Door> doors;
-	void round_mask();
-	void pack_rooms();
-	void emplace_room(int i, int j);
-	void set_room(int& i, int& j, int& width, int& height);
-	void sound_room(int r1, int c1, int r2, int c2, bool& blocked, std::map<int, int>& hit);
-	void open_room(DungeonRoom* room);
-	std::vector<Sill> door_sills(DungeonRoom* room);
-	std::optional<Sill> check_sill(DungeonRoom* room, int sill_r, int sill_c, std::string dir);
-	template <typename T>
-	std::vector<T> shuffle(std::vector<T> sills);
-	int alloc_opens(DungeonRoom* room);
-	int door_type();
-	void tunnel(int i, int j, std::optional<std::string> last_dir);
-	template <typename T>
-	std::vector<std::string> keys_of(std::map<std::string, T> the_map);
-	bool open_tunnel(int i, int j, std::string dir);
-	bool sound_tunnel(int mid_r, int mid_c, int next_r, int next_c);
-	void delve_tunnel(int mid_r, int mid_c, int next_r, int next_c);
-	void collapse_tunnels(int p, std::map<std::string, CloseEnd> close_end);
-	void collapse(int r, int c, std::map<std::string, CloseEnd> xc);
-	bool check_tunnel(int r, int c, CloseEnd xc);
-	void empty_blocks();
+void DungeonRoom::print(TwoDArray<char>& out) {
+	out.set(row, col, '+');
+	out.set(row + height, col, '+');
+	out.set(row, col + width, '+');
+	out.set(row + height, col + width, '+');
 
-public:
-	Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent);
-	~Dungeon();
-	void init_cells();
-	void emplace_rooms();
-	void open_rooms();
-	void label_rooms();
-	void corridors();
-	void fix_doors();
-	void clean_dungeon();
-};
+	for (int i = 1; i < height ; i++) {
+		out.set(row + i, col, '|');
+		out.set(row + i, col + width, '|');
+	}
+	for (int j = 1; j < width; j++) {
+		out.set(row, col + j, '-');
+		out.set(row + height, col + j, '-');
+	}
+
+	int tid = id;
+	int count = 0;
+	while (tid > 0) {
+		tid = tid/10;
+		count++;
+	}
+
+	tid = id;
+	count--;
+	while (tid > 0) {
+		out.set(row + height/2, col + width/2 + count, char(tid%10)+ '0');
+		tid = tid/10;
+		count--;
+	}
+
+	for (const auto& entry : doors) {
+		for (const auto& door : entry.second) {
+			door.print(out, entry.first);
+		}
+	}
+}
 
 Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent)
 	: n_rows(n_rows / 2 * 2), n_cols(n_cols / 2 * 2), n_rooms(0), room_min(room_min), room_max(room_max), seed(seed),
@@ -215,8 +179,8 @@ Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, i
 	this->max_col = this->n_cols - 1;
 	this->room_base = (this->room_min + 1) / 2;
 	this->room_radix = (this->room_max - this->room_min) / 2 + 1;
-	this->cell = new TwoDArray<int>(this->n_rows, this->n_cols);
-	this->rooms = std::map<int, DungeonRoom*>();
+	this->cell = new TwoDArray<unsigned int>(this->n_rows, this->n_cols);
+	this->rooms = std::map<unsigned int, DungeonRoom*>();
 	this->doors = std::vector<Door>();
 	this->close_ends = std::map<std::string, CloseEnd>({
 		{
@@ -257,7 +221,7 @@ Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, i
 Dungeon::~Dungeon()
 {
 	delete cell;
-	for (std::map<int, DungeonRoom*>::iterator i = rooms.begin(); i != rooms.end(); i = rooms.erase(i))
+	for (auto i = rooms.begin(); i != rooms.end(); i = rooms.erase(i))
 	{
 		delete i->second;
 	}
@@ -276,8 +240,7 @@ void Dungeon::init_cells()
 	round_mask();
 }
 
-void Dungeon::round_mask()
-{
+void Dungeon::round_mask() const {
 	int center_r = n_rows / 2;
 	int center_c = n_cols / 2;
 
@@ -331,19 +294,19 @@ void Dungeon::emplace_room(int i, int j)
 	int r2 = (i + height) * 2 - 1;
 	int c2 = (j + width) * 2 - 1;
 
-	if ((r1 < 1 || r2 > max_row) || (c1 < 1 || c2 > max_col))
+	if ((r1 < 1 || r2 >= max_row) || (c1 < 1 || c2 >= max_col))
 	{
 		return;
 	}
 
 	bool blocked;
-	std::map<int, int> hit = std::map<int, int>();
+	std::map<unsigned int, int> hit = std::map<unsigned int, int>();
 	sound_room(r1, c1, r2, c2, blocked, hit);
 	if (blocked)
 	{
 		return;
 	}
-	if (hit.size() > 0)
+	if (!hit.empty())
 	{
 		return;
 	}
@@ -364,8 +327,8 @@ void Dungeon::emplace_room(int i, int j)
 			cell->set(r, c, cell->get(r, c) | ROOM | (room_id << 6));
 		}
 	}
-	int h = (r2 - r1 + 1) * 10;
-	int w = (c2 - c1 + 1) * 10;
+	int h = r2 - r1 + 1;
+	int w = c2 - c1 + 1;
 
 	rooms[room_id] = new DungeonRoom(room_id, r1, c1, r1, r2, c1, c2, h, w, h * w);
 
@@ -393,8 +356,7 @@ void Dungeon::emplace_room(int i, int j)
 	}
 }
 
-void Dungeon::set_room(int& i, int& j, int& width, int& height)
-{
+void Dungeon::set_room(int& i, int& j, int& width, int& height) const {
 	if (height == 0)
 	{
 		if (i)
@@ -427,8 +389,7 @@ void Dungeon::set_room(int& i, int& j, int& width, int& height)
 	}
 }
 
-void Dungeon::sound_room(int r1, int c1, int r2, int c2, bool& blocked, std::map<int, int>& hit)
-{
+void Dungeon::sound_room(int r1, int c1, int r2, int c2, bool& blocked, std::map<unsigned int, int>& hit) const {
 	blocked = false;
 	for (int r = r1; r <= r2; r++)
 	{
@@ -453,7 +414,7 @@ void Dungeon::open_rooms()
 	{
 		open_room(rooms[id]);
 	}
-	connections.clear();
+	//connections.clear();
 }
 
 void Dungeon::open_room(DungeonRoom* room)
@@ -471,18 +432,18 @@ void Dungeon::open_room(DungeonRoom* room)
 		sills.pop_back();
 		int door_r = sill.door_r;
 		int door_c = sill.door_c;
-		int door_cell = cell->get(door_r, door_c);
+		unsigned int door_cell = cell->get(door_r, door_c);
 		if (door_cell & DOORSPACE)
 		{
 			i--;
 			continue;
 		}
 
-		int out_id = sill.out_id;
+		unsigned int out_id = sill.out_id;
 		if (out_id)
 		{
 			std::pair<int, int> pair = std::make_pair(std::min(room->id, out_id), std::max(room->id, out_id));
-			if (std::find(connections.begin(), connections.end(), pair) != connections.end())
+			if (std::ranges::find(connections.begin(), connections.end(), pair) != connections.end())
 			{
 				i--;
 				continue;
@@ -500,7 +461,7 @@ void Dungeon::open_room(DungeonRoom* room)
 			cell->set(r, c, cell->get(r, c) & ~PERIMETER);
 			cell->set(r, c, cell->get(r, c) | ENTRANCE);
 		}
-		int door_type = door_type();
+		int door_type = get_door_type();
 		std::string key;
 		std::string type;
 
@@ -536,10 +497,8 @@ void Dungeon::open_room(DungeonRoom* room)
 			key = "portc";
 			type = "Portcullis";
 			break;
-		default:
-			break;
 		}
-		room->door[open_dir].push_back(Door(door_r, door_c, key, type, out_id));
+		room->doors[open_dir].emplace_back(door_r, door_c, key, type, out_id);
 	}
 }
 
@@ -593,23 +552,22 @@ std::vector<Sill> Dungeon::door_sills(DungeonRoom* room)
 	return shuffle(list);
 }
 
-std::optional<Sill> Dungeon::check_sill(DungeonRoom* room, int sill_r, int sill_c, std::string dir)
-{
+std::optional<Sill> Dungeon::check_sill(DungeonRoom* room, int sill_r, int sill_c, const std::string& dir) const {
 	int door_r = sill_r + di[dir];
 	int door_c = sill_c + dj[dir];
-	int door_cell = cell->get(door_r, door_c);
+	unsigned int door_cell = cell->get(door_r, door_c);
 	if (!(door_cell & PERIMETER) || (door_cell & BLOCK_ROOM))
 	{
 		return std::nullopt;
 	}
 	int out_r = door_r + di[dir];
 	int out_c = door_c + dj[dir];
-	int out_cell = cell->get(out_r, out_c);
+	unsigned int out_cell = cell->get(out_r, out_c);
 	if (out_cell & BLOCKED)
 	{
 		return std::nullopt;
 	}
-	int out_id = 0;
+	unsigned int out_id = 0;
 	if (out_cell & ROOM)
 	{
 		out_id = (out_cell & ROOM_ID) >> 6;
@@ -650,7 +608,7 @@ int Dungeon::alloc_opens(DungeonRoom* room)
 	return flumph + random_in_range(0, flumph);
 }
 
-int Dungeon::door_type()
+int Dungeon::get_door_type()
 {
 	int i = random_in_range(0, 110);
 	if (i < 15)
@@ -681,15 +639,15 @@ int Dungeon::door_type()
 
 void Dungeon::label_rooms()
 {
-	for (int id = 1; id <= n_rows; id++)
+	for (int id = 1; id <= n_rooms; id++)
 	{
 		DungeonRoom* room = rooms[id];
 		std::string label = std::to_string(room->id);
-		int len = label.length();
+		unsigned int len = label.length();
 		int label_r = int((room->north + room->south) / 2);
 		int label_c = int((room->east + room->west - len) / 2 + 1);
 
-		for (int c = 0; c < len; c++)
+		for (unsigned int c = 0; c < len; c++)
 		{
 			char chacha = label.at(c);
 			cell->set(label_r, label_c + c, cell->get(label_r, label_c + c) | (chacha << 24));
@@ -714,7 +672,7 @@ void Dungeon::corridors()
 	}
 }
 
-void Dungeon::tunnel(int i, int j, std::optional<std::string> last_dir)
+void Dungeon::tunnel(int i, int j, const std::optional<std::string>& last_dir)
 {
 	std::vector<std::string> dirs = shuffle(keys_of(dj));
 
@@ -740,7 +698,7 @@ std::vector<std::string> Dungeon::keys_of(std::map<std::string, T> the_map)
 	return keys;
 }
 
-bool Dungeon::open_tunnel(int i, int j, std::string dir)
+bool Dungeon::open_tunnel(int i, int j, const std::string& dir)
 {
 	int this_r = i * 2 + 1;
 	int this_c = j * 2 + 1;
@@ -757,8 +715,7 @@ bool Dungeon::open_tunnel(int i, int j, std::string dir)
 	return false;
 }
 
-bool Dungeon::sound_tunnel(int mid_r, int mid_c, int next_r, int next_c)
-{
+bool Dungeon::sound_tunnel(int mid_r, int mid_c, int next_r, int next_c) const {
 	if ((next_r < 0 || next_r > n_rows) || (next_c < 0 || next_c > n_cols))
 	{
 		return false;
@@ -776,8 +733,7 @@ bool Dungeon::sound_tunnel(int mid_r, int mid_c, int next_r, int next_c)
 	return true;
 }
 
-void Dungeon::delve_tunnel(int mid_r, int mid_c, int next_r, int next_c)
-{
+void Dungeon::delve_tunnel(int mid_r, int mid_c, int next_r, int next_c) const {
 	for (int r = std::min(mid_r, next_r); r <= std::max(mid_r, next_r); r++)
 	{
 		for (int c = std::min(mid_c, next_c); c <= std::max(mid_c, next_c); c++)
@@ -798,7 +754,7 @@ void Dungeon::clean_dungeon()
 	empty_blocks();
 }
 
-void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd> xc)
+void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd>& xc)
 {
 	for (int i = 0; i < n_i; i++)
 	{
@@ -806,9 +762,11 @@ void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd> xc)
 		for (int j = 0; j < n_j; j++)
 		{
 			int c = j * 2 + 1;
-			if (!(cell->get(r, c) & OPENSPACE) || (cell->get(r, c) & STAIRS) || !((p == 100) || random_in_range(0, 100)
-				< p))
-			{
+
+			if (!(cell->get(r, c) & OPENSPACE)) {
+				continue;
+			}
+			if (!(p==100 || random_in_range(0, 100)<p)) {
 				continue;
 			}
 			collapse(r, c, xc);
@@ -816,19 +774,22 @@ void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd> xc)
 	}
 }
 
-void Dungeon::collapse(int r, int c, std::map<std::string, CloseEnd> xc)
+void Dungeon::collapse(int r, int c, std::map<std::string, CloseEnd>& xc)
 {
+	if (!(0 <= r && r < max_row && 0 <= c && c < max_col)) {
+		return;
+	}
 	if (!(cell->get(r, c) & OPENSPACE))
 	{
 		return;
 	}
-	for (const auto& dir : keys_of(xc))
+	for (const std::string& dir : keys_of(xc))
 	{
 		if (check_tunnel(r, c, xc[dir]))
 		{
 			for (const auto& p : xc[dir].close)
 			{
-				cell->set(r + p.first, c + p.second, cell->get(r + p.first, c + p.second) | CORRIDOR);
+				cell->set(r + p.first, c + p.second, NOTHING);
 			}
 			std::pair<int, int> recurse = xc[dir].recurse;
 			collapse(r + recurse.first, c + recurse.second, xc);
@@ -836,13 +797,14 @@ void Dungeon::collapse(int r, int c, std::map<std::string, CloseEnd> xc)
 	}
 }
 
-bool Dungeon::check_tunnel(int r, int c, CloseEnd xc)
-{
-	for (const auto& p : xc)
+bool Dungeon::check_tunnel(int r, int c, const CloseEnd& xc) const {
+	for (const auto& p : xc.walled)
 	{
-		if (cell->get(r + p.first, c + p.second) & OPENSPACE)
-		{
-			return false;
+		if (0 <= r + p.first && r + p.first < max_row && 0 <= c + p.second && c + p.second < max_col) {
+			if (cell->get(r + p.first, c + p.second) & OPENSPACE)
+			{
+				return false;
+			}
 		}
 	}
 	return true;
@@ -853,14 +815,14 @@ void Dungeon::fix_doors()
 	TwoDArray<bool> fixed = TwoDArray<bool>(n_cols, n_rows);
 	for (const auto& room : rooms)
 	{
-		for (const auto& dir : room.second->door)
+		for (const auto& dir : room.second->doors)
 		{
 			std::vector<Door> shiny = std::vector<Door>();
 			for (const auto& door : dir.second)
 			{
 				int door_r = door.row;
 				int door_c = door.col;
-				int door_cell = cell->get(door_r, door_c);
+				unsigned int door_cell = cell->get(door_r, door_c);
 				if (!(door_cell & OPENSPACE))
 				{
 					continue;
@@ -872,10 +834,10 @@ void Dungeon::fix_doors()
 				}
 				else
 				{
-					int out_id = door.out_id;
+					unsigned int out_id = door.out_id;
 					if (out_id)
 					{
-						rooms[out_id]->door[opposite[dir.first]].push_back(door);
+						rooms[out_id]->doors[opposite[dir.first]].push_back(door);
 					}
 					shiny.push_back(door);
 					fixed.set(door_r, door_c, true);
@@ -883,24 +845,23 @@ void Dungeon::fix_doors()
 			}
 			if (!shiny.empty())
 			{
-				room.second->door[dir.first] = shiny;
+				room.second->doors[dir.first] = shiny;
 				for (const auto& door : shiny)
 				{
 					doors.push_back(door);
 				}
 			} else
 			{
-				room.second->door[dir.first].clear();
+				room.second->doors[dir.first].clear();
 			}
 		}
 	}
 }
 
-void Dungeon::empty_blocks()
-{
-	for (int r = 0; r <= n_rows; r++)
+void Dungeon::empty_blocks() const {
+	for (int r = 0; r < n_rows; r++)
 	{
-		for (int c = 0; c <= n_cols; c++)
+		for (int c = 0; c < n_cols; c++)
 		{
 			if (cell->get(r, c) & BLOCKED)
 			{
@@ -910,10 +871,24 @@ void Dungeon::empty_blocks()
 	}
 }
 
+void Dungeon::print() {
+	TwoDArray<char> out = TwoDArray<char>(n_rows, n_cols);
+	out.fill(' ');
+	for (const auto& entry : rooms) {
+		 entry.second->print(out);
+	}
+
+	for (int i = 0; i < n_rows; i++) {
+		for (int j = 0; j < n_cols; j++) {
+			std::cout << out.get(i, j);
+		}
+		std::cout << std::endl;
+	}
+}
 
 DungeonGenerator::DungeonGenerator()
+	:dungeon(new Dungeon(64, 64, 3, 9, 1733282182/*int(std::time(nullptr))*/, 50))
 {
-	Dungeon* dungeon = new Dungeon(39, 39, 3, 9, std::time(nullptr), 50);
 	dungeon->init_cells();
 	dungeon->emplace_rooms();
 	dungeon->open_rooms();
@@ -924,4 +899,8 @@ DungeonGenerator::DungeonGenerator()
 
 DungeonGenerator::~DungeonGenerator()
 {
+}
+
+void DungeonGenerator::print_dungeon() {
+	dungeon->print();
 }
