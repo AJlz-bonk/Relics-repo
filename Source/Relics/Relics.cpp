@@ -3,4 +3,6 @@
 #include "Relics.h"
 #include "Modules/ModuleManager.h"
 
+DEFINE_LOG_CATEGORY(LogRelics);
+
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Relics, "Relics" );

@@ -1,4 +1,7 @@
 #include "DungeonGenerator.h"
+#include "../Relics.h"
+#include "Components/SceneComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include <cstdlib>
 #include <ctime>
 #include <map>
@@ -886,21 +889,46 @@ void Dungeon::print() {
 	}
 }
 
-DungeonGenerator::DungeonGenerator()
-	:dungeon(new Dungeon(64, 64, 3, 9, 1733282182/*int(std::time(nullptr))*/, 50))
+ADungeonGenerator::ADungeonGenerator()
+	:dungeon(nullptr), n_rows(64), n_cols(64), room_min(3), room_max(9)
 {
+	PrimaryActorTick.bCanEverTick = false;
+
+	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
+	SetRootComponent(SceneComponent);
+
+	Walls = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Walls"));
+	Walls->SetupAttachment(SceneComponent);
+}
+
+ADungeonGenerator::~ADungeonGenerator()
+{
+	delete dungeon;
+}
+
+void ADungeonGenerator::print_dungeon() {
+	if (dungeon != nullptr)
+	{
+		dungeon->print();
+	}
+}
+
+void ADungeonGenerator::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	UE_LOG(LogRelics, Log, TEXT("AADungeonGenerator::OnConstruction called"));
+
+	dungeon = new Dungeon(n_rows, n_cols, room_min, room_max, seed, 0);
 	dungeon->init_cells();
 	dungeon->emplace_rooms();
 	dungeon->open_rooms();
 	dungeon->label_rooms();
 	dungeon->corridors();
 	dungeon->clean_dungeon();
+
+	FVector translation(100.f, 0.f, 0.f);
+	Walls->AddInstance(FTransform(translation));
 }
 
-DungeonGenerator::~DungeonGenerator()
-{
-}
 
-void DungeonGenerator::print_dungeon() {
-	dungeon->print();
-}

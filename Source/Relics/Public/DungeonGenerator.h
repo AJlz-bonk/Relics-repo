@@ -1,9 +1,11 @@
 #pragma once
-#include "CoreMinimal.h"
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "DungeonGenerator.generated.h"
 
 template<typename T>
 class TwoDArray {
@@ -167,13 +169,37 @@ public:
     void print();
 };
 
-class RELICS_API DungeonGenerator {
+UCLASS()
+class RELICS_API ADungeonGenerator : public AActor
+{
     Dungeon *dungeon;
-
-public:
+	GENERATED_BODY()
+	
+public:	
+	// Sets default values for this actor's properties
+	ADungeonGenerator();
+    
+    ~ADungeonGenerator();
+    
     void print_dungeon();
+    
+    virtual void OnConstruction(const FTransform &Transform) override;
 
-    DungeonGenerator();
+    UPROPERTY(EditAnywhere)
+    class UInstancedStaticMeshComponent* Walls;
 
-    ~DungeonGenerator();
+    UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+    uint32 n_rows;
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+    uint32 n_cols;
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+    uint32 room_min;
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+    uint32 room_max;
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+    uint32 seed;
 };
