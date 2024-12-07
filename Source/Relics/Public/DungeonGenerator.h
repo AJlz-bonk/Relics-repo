@@ -51,6 +51,8 @@ public:
     Door(int row, int col, std::string key, std::string type, unsigned int out_id);
 
     void print(TwoDArray<char> & out, std::string dir) const;
+
+    void build(UInstancedStaticMeshComponent* blocks, std::string dir) const;
 };
 
 class Sill {
@@ -84,7 +86,7 @@ public:
 
     void print(TwoDArray<char>& out);
     
-    void render(UInstancedStaticMeshComponent* floors);
+    void build(UInstancedStaticMeshComponent* blocks);
 };
 
 class Dungeon {
@@ -192,7 +194,7 @@ public:
     virtual void OnConstruction(const FTransform &Transform) override;
 
     UPROPERTY(EditAnywhere)
-    class UInstancedStaticMeshComponent* floors;
+    class UInstancedStaticMeshComponent* blocks;
 
     UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
     uint32 n_rows;

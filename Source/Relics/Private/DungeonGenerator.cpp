@@ -135,6 +135,46 @@ void Door::print(TwoDArray<char>& out, std::string dir) const
 	}
 }
 
+void Door::build(UInstancedStaticMeshComponent* blocks, std::string dir) const
+{
+	int x = row;
+	int y = col;
+	int scaleZ = 1;
+	
+	if (dir == "north")
+	{
+		x++;
+	}
+	
+	if (dir == "south")
+	{
+		x--;
+		//scaleZ++;
+	}
+	
+	if (dir == "west")
+	{
+		y++;
+		//scaleZ+=2;
+	}
+	
+	if (dir == "east")
+	{
+		y--;
+		//scaleZ+=3;
+	}
+
+	FMatrix transformMatrix = FMatrix(
+		FPlane(1.0f, 0.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 1.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 0.0f, scaleZ*1.0f, 0.0f),
+		FPlane(x * 100.0f, y * 100.0f, 0.2f, 1.0f)
+	);
+
+	blocks->AddInstance(FTransform(transformMatrix));
+}
+
+
 Sill::Sill(int sill_r, int sill_c, std::string dir, int door_r, int door_c, unsigned int out_id)
 	: sill_r(sill_r), sill_c(sill_c), dir(std::move(dir)), door_r(door_r), door_c(door_c), out_id(out_id)
 {
@@ -197,7 +237,7 @@ void DungeonRoom::print(TwoDArray<char>& out)
 	}
 }
 
-void DungeonRoom::render(UInstancedStaticMeshComponent* floors)
+void DungeonRoom::build(UInstancedStaticMeshComponent* blocks)
 {
 	FMatrix transformMatrix = FMatrix(
 		FPlane(height * 1.0f, 0.0f, 0.0f, 0.0f),
@@ -206,7 +246,15 @@ void DungeonRoom::render(UInstancedStaticMeshComponent* floors)
 		FPlane(row * 100.0f, col * 100.0f, 0.0f, 1.0f)
 	);
 
-	floors->AddInstance(FTransform(transformMatrix));
+	blocks->AddInstance(FTransform(transformMatrix));
+
+	for (const auto& entry : doors)
+	{
+		for (const auto& door : entry.second)
+		{
+			door.build(blocks, entry.first);
+		}
+	}
 }
 
 Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent)
@@ -969,7 +1017,7 @@ void Dungeon::render(UInstancedStaticMeshComponent* floors)
 {
 	for (const auto& entry : rooms)
 	{
-		entry.second->render(floors);
+		entry.second->build(floors);
 	}
 }
 
@@ -996,8 +1044,8 @@ ADungeonGenerator::ADungeonGenerator()
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	SetRootComponent(SceneComponent);
 
-	floors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Walls"));
-	floors->SetupAttachment(SceneComponent);
+	blocks = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Walls"));
+	blocks->SetupAttachment(SceneComponent);
 }
 
 ADungeonGenerator::~ADungeonGenerator()
@@ -1032,8 +1080,8 @@ void ADungeonGenerator::OnConstruction(const FTransform& Transform)
 	dungeon->corridors();
 	dungeon->clean_dungeon();
 
-	floors->ClearInstances();
+	blocks->ClearInstances();
 
-	dungeon->render(floors);
+	dungeon->render(blocks);
 	UE_LOG(LogRelics, Log, TEXT("%s"), *FString(dungeon->toString().c_str()));
 }
