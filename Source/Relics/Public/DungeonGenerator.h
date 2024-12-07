@@ -83,6 +83,8 @@ public:
     std::map<std::string, std::vector<Door> > doors;
 
     void print(TwoDArray<char>& out);
+    
+    void render(UInstancedStaticMeshComponent* floors);
 };
 
 class Dungeon {
@@ -167,6 +169,10 @@ public:
     void clean_dungeon();
 
     void print();
+
+    std::string toString();
+
+    void render(UInstancedStaticMeshComponent* floors);
 };
 
 UCLASS()
@@ -186,7 +192,7 @@ public:
     virtual void OnConstruction(const FTransform &Transform) override;
 
     UPROPERTY(EditAnywhere)
-    class UInstancedStaticMeshComponent* Walls;
+    class UInstancedStaticMeshComponent* floors;
 
     UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
     uint32 n_rows;

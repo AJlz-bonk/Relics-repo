@@ -12,6 +12,8 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <random>
+#include <sstream>
 
 enum
 {
@@ -55,6 +57,7 @@ template <typename T>
 TwoDArray<T>::TwoDArray(int r, int c) : rows(r), cols(c), data(new T[r * c])
 {
 }
+
 template <typename T>
 TwoDArray<T>::~TwoDArray()
 {
@@ -64,7 +67,8 @@ TwoDArray<T>::~TwoDArray()
 template <typename T>
 T& TwoDArray<T>::get(int i, int j)
 {
-	if (0 <= i && i < rows && 0 <= j && j < cols) {
+	if (0 <= i && i < rows && 0 <= j && j < cols)
+	{
 		return data[i * cols + j];
 	}
 	return nil;
@@ -73,7 +77,8 @@ T& TwoDArray<T>::get(int i, int j)
 template <typename T>
 void TwoDArray<T>::set(int i, int j, T val)
 {
-	if (0 <= i && i < rows && 0 <= j && j < cols) {
+	if (0 <= i && i < rows && 0 <= j && j < cols)
+	{
 		data[i * cols + j] = val;
 		return;
 	}
@@ -81,9 +86,12 @@ void TwoDArray<T>::set(int i, int j, T val)
 }
 
 template <typename T>
-void TwoDArray<T>::fill(const T& val) {
-	for (int i = 0; i < rows; i++) {
-		for (int j = 0; j < cols; j++) {
+void TwoDArray<T>::fill(const T& val)
+{
+	for (int i = 0; i < rows; i++)
+	{
+		for (int j = 0; j < cols; j++)
+		{
 			data[i * cols + j] = val;
 		}
 	}
@@ -94,12 +102,15 @@ CloseEnd::CloseEnd(std::vector<std::pair<int, int>> walled, std::vector<std::pai
 	: walled(std::move(walled)), close(std::move(close)), recurse(recurse)
 {
 }
+
 CloseEnd::CloseEnd(const CloseEnd& other)
 	: walled(other.walled), close(other.close), recurse(other.recurse)
 {
 }
+
 CloseEnd::CloseEnd()
-	: walled(std::vector<std::pair<int, int>>()), close(std::vector<std::pair<int, int>>()), recurse(std::make_pair(0, 0))
+	: walled(std::vector<std::pair<int, int>>()), close(std::vector<std::pair<int, int>>()),
+	  recurse(std::make_pair(0, 0))
 {
 }
 
@@ -108,12 +119,18 @@ Door::Door(int row, int col, std::string key, std::string type, unsigned int out
 {
 }
 
-void Door::print(TwoDArray<char> &out, std::string dir) const {
-	if (dir == "north") {
-		out.set(row+1, col, key.at(0));
-	} else if (dir == "west") {
-		out.set(row, col+1, key.at(0));
-	} else {
+void Door::print(TwoDArray<char>& out, std::string dir) const
+{
+	if (dir == "north")
+	{
+		out.set(row + 1, col, key.at(0));
+	}
+	else if (dir == "west")
+	{
+		out.set(row, col + 1, key.at(0));
+	}
+	else
+	{
 		out.set(row, col, key.at(0));
 	}
 }
@@ -128,48 +145,68 @@ int random_in_range(int min, int max)
 	return std::rand() % (max - min + 1) + min;
 }
 
-DungeonRoom::DungeonRoom(unsigned int id, int row, int col, int north, int south, int west, int east, int height, int width,
+DungeonRoom::DungeonRoom(unsigned int id, int row, int col, int north, int south, int west, int east, int height,
+                         int width,
                          int area)
 	: id(id), row(row), col(col), north(north), south(south), west(west), east(east), height(height), width(width),
 	  area(area), doors(std::map<std::string, std::vector<Door>>())
 {
 }
 
-void DungeonRoom::print(TwoDArray<char>& out) {
+void DungeonRoom::print(TwoDArray<char>& out)
+{
 	out.set(row, col, '+');
 	out.set(row + height, col, '+');
 	out.set(row, col + width, '+');
 	out.set(row + height, col + width, '+');
 
-	for (int i = 1; i < height ; i++) {
+	for (int i = 1; i < height; i++)
+	{
 		out.set(row + i, col, '|');
 		out.set(row + i, col + width, '|');
 	}
-	for (int j = 1; j < width; j++) {
+	for (int j = 1; j < width; j++)
+	{
 		out.set(row, col + j, '-');
 		out.set(row + height, col + j, '-');
 	}
 
 	int tid = id;
 	int count = 0;
-	while (tid > 0) {
-		tid = tid/10;
+	while (tid > 0)
+	{
+		tid = tid / 10;
 		count++;
 	}
 
 	tid = id;
 	count--;
-	while (tid > 0) {
-		out.set(row + height/2, col + width/2 + count, char(tid%10)+ '0');
-		tid = tid/10;
+	while (tid > 0)
+	{
+		out.set(row + height / 2, col + width / 2 + count, char(tid % 10) + '0');
+		tid = tid / 10;
 		count--;
 	}
 
-	for (const auto& entry : doors) {
-		for (const auto& door : entry.second) {
+	for (const auto& entry : doors)
+	{
+		for (const auto& door : entry.second)
+		{
 			door.print(out, entry.first);
 		}
 	}
+}
+
+void DungeonRoom::render(UInstancedStaticMeshComponent* floors)
+{
+	FMatrix transformMatrix = FMatrix(
+		FPlane(height * 1.0f, 0.0f, 0.0f, 0.0f),
+		FPlane(0.0f, width * 1.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 0.0f, 0.2f, 0.0f),
+		FPlane(row * 100.0f, col * 100.0f, 0.0f, 1.0f)
+	);
+
+	floors->AddInstance(FTransform(transformMatrix));
 }
 
 Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent)
@@ -243,7 +280,8 @@ void Dungeon::init_cells()
 	round_mask();
 }
 
-void Dungeon::round_mask() const {
+void Dungeon::round_mask() const
+{
 	int center_r = n_rows / 2;
 	int center_c = n_cols / 2;
 
@@ -359,7 +397,8 @@ void Dungeon::emplace_room(int i, int j)
 	}
 }
 
-void Dungeon::set_room(int& i, int& j, int& width, int& height) const {
+void Dungeon::set_room(int& i, int& j, int& width, int& height) const
+{
 	if (height == 0)
 	{
 		if (i)
@@ -392,7 +431,8 @@ void Dungeon::set_room(int& i, int& j, int& width, int& height) const {
 	}
 }
 
-void Dungeon::sound_room(int r1, int c1, int r2, int c2, bool& blocked, std::map<unsigned int, int>& hit) const {
+void Dungeon::sound_room(int r1, int c1, int r2, int c2, bool& blocked, std::map<unsigned int, int>& hit) const
+{
 	blocked = false;
 	for (int r = r1; r <= r2; r++)
 	{
@@ -555,7 +595,8 @@ std::vector<Sill> Dungeon::door_sills(DungeonRoom* room)
 	return shuffle(list);
 }
 
-std::optional<Sill> Dungeon::check_sill(DungeonRoom* room, int sill_r, int sill_c, const std::string& dir) const {
+std::optional<Sill> Dungeon::check_sill(DungeonRoom* room, int sill_r, int sill_c, const std::string& dir) const
+{
 	int door_r = sill_r + di[dir];
 	int door_c = sill_c + dj[dir];
 	unsigned int door_cell = cell->get(door_r, door_c);
@@ -718,7 +759,8 @@ bool Dungeon::open_tunnel(int i, int j, const std::string& dir)
 	return false;
 }
 
-bool Dungeon::sound_tunnel(int mid_r, int mid_c, int next_r, int next_c) const {
+bool Dungeon::sound_tunnel(int mid_r, int mid_c, int next_r, int next_c) const
+{
 	if ((next_r < 0 || next_r > n_rows) || (next_c < 0 || next_c > n_cols))
 	{
 		return false;
@@ -736,7 +778,8 @@ bool Dungeon::sound_tunnel(int mid_r, int mid_c, int next_r, int next_c) const {
 	return true;
 }
 
-void Dungeon::delve_tunnel(int mid_r, int mid_c, int next_r, int next_c) const {
+void Dungeon::delve_tunnel(int mid_r, int mid_c, int next_r, int next_c) const
+{
 	for (int r = std::min(mid_r, next_r); r <= std::max(mid_r, next_r); r++)
 	{
 		for (int c = std::min(mid_c, next_c); c <= std::max(mid_c, next_c); c++)
@@ -766,10 +809,12 @@ void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd>& xc)
 		{
 			int c = j * 2 + 1;
 
-			if (!(cell->get(r, c) & OPENSPACE)) {
+			if (!(cell->get(r, c) & OPENSPACE))
+			{
 				continue;
 			}
-			if (!(p==100 || random_in_range(0, 100)<p)) {
+			if (!(p == 100 || random_in_range(0, 100) < p))
+			{
 				continue;
 			}
 			collapse(r, c, xc);
@@ -779,7 +824,8 @@ void Dungeon::collapse_tunnels(int p, std::map<std::string, CloseEnd>& xc)
 
 void Dungeon::collapse(int r, int c, std::map<std::string, CloseEnd>& xc)
 {
-	if (!(0 <= r && r < max_row && 0 <= c && c < max_col)) {
+	if (!(0 <= r && r < max_row && 0 <= c && c < max_col))
+	{
 		return;
 	}
 	if (!(cell->get(r, c) & OPENSPACE))
@@ -800,10 +846,12 @@ void Dungeon::collapse(int r, int c, std::map<std::string, CloseEnd>& xc)
 	}
 }
 
-bool Dungeon::check_tunnel(int r, int c, const CloseEnd& xc) const {
+bool Dungeon::check_tunnel(int r, int c, const CloseEnd& xc) const
+{
 	for (const auto& p : xc.walled)
 	{
-		if (0 <= r + p.first && r + p.first < max_row && 0 <= c + p.second && c + p.second < max_col) {
+		if (0 <= r + p.first && r + p.first < max_row && 0 <= c + p.second && c + p.second < max_col)
+		{
 			if (cell->get(r + p.first, c + p.second) & OPENSPACE)
 			{
 				return false;
@@ -853,7 +901,8 @@ void Dungeon::fix_doors()
 				{
 					doors.push_back(door);
 				}
-			} else
+			}
+			else
 			{
 				room.second->doors[dir.first].clear();
 			}
@@ -861,7 +910,8 @@ void Dungeon::fix_doors()
 	}
 }
 
-void Dungeon::empty_blocks() const {
+void Dungeon::empty_blocks() const
+{
 	for (int r = 0; r < n_rows; r++)
 	{
 		for (int c = 0; c < n_cols; c++)
@@ -874,31 +924,80 @@ void Dungeon::empty_blocks() const {
 	}
 }
 
-void Dungeon::print() {
+void Dungeon::print()
+{
 	TwoDArray<char> out = TwoDArray<char>(n_rows, n_cols);
 	out.fill(' ');
-	for (const auto& entry : rooms) {
-		 entry.second->print(out);
+	for (const auto& entry : rooms)
+	{
+		entry.second->print(out);
 	}
 
-	for (int i = 0; i < n_rows; i++) {
-		for (int j = 0; j < n_cols; j++) {
+	for (int i = n_rows - 1; i >= 0; i--)
+	{
+		for (int j = 0; j < n_cols; j++)
+		{
 			std::cout << out.get(i, j);
 		}
 		std::cout << std::endl;
 	}
 }
 
+std::string Dungeon::toString()
+{
+	TwoDArray<char> out = TwoDArray<char>(n_rows, n_cols);
+	out.fill(' ');
+	for (const auto& entry : rooms)
+	{
+		entry.second->print(out);
+	}
+
+	std::stringstream ss = std::stringstream();
+	for (int i = n_rows - 1; i >= 0; i--)
+	{
+		for (int j = 0; j < n_cols; j++)
+		{
+			ss << out.get(i, j);
+		}
+		ss << std::endl;
+	}
+
+	return ss.str();
+}
+
+void Dungeon::render(UInstancedStaticMeshComponent* floors)
+{
+	for (const auto& entry : rooms)
+	{
+		entry.second->render(floors);
+	}
+}
+
+int getRandomInt()
+{
+	// Create a random device for seeding
+	std::random_device rd;
+
+	// Use Mersenne Twister engine for random number generation
+	std::mt19937 gen(rd());
+
+	// Define a distribution from 0 to INT_MAX
+	std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
+
+	// Generate and return a random number
+	return distrib(gen);
+}
+
 ADungeonGenerator::ADungeonGenerator()
-	:dungeon(nullptr), n_rows(64), n_cols(64), room_min(3), room_max(9)
+	: dungeon(nullptr), n_rows(256), n_cols(256), room_min(7), room_max(11), seed(getRandomInt())
 {
 	PrimaryActorTick.bCanEverTick = false;
 
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	SetRootComponent(SceneComponent);
 
-	Walls = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Walls"));
-	Walls->SetupAttachment(SceneComponent);
+	floors = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Walls"));
+	floors->SetupAttachment(SceneComponent);
 }
 
 ADungeonGenerator::~ADungeonGenerator()
@@ -906,7 +1005,8 @@ ADungeonGenerator::~ADungeonGenerator()
 	delete dungeon;
 }
 
-void ADungeonGenerator::print_dungeon() {
+void ADungeonGenerator::print_dungeon()
+{
 	if (dungeon != nullptr)
 	{
 		dungeon->print();
@@ -919,6 +1019,11 @@ void ADungeonGenerator::OnConstruction(const FTransform& Transform)
 
 	UE_LOG(LogRelics, Log, TEXT("AADungeonGenerator::OnConstruction called"));
 
+	if (dungeon != nullptr)
+	{
+		delete dungeon;
+	}
+
 	dungeon = new Dungeon(n_rows, n_cols, room_min, room_max, seed, 0);
 	dungeon->init_cells();
 	dungeon->emplace_rooms();
@@ -927,8 +1032,8 @@ void ADungeonGenerator::OnConstruction(const FTransform& Transform)
 	dungeon->corridors();
 	dungeon->clean_dungeon();
 
-	FVector translation(100.f, 0.f, 0.f);
-	Walls->AddInstance(FTransform(translation));
+	floors->ClearInstances();
+
+	dungeon->render(floors);
+	UE_LOG(LogRelics, Log, TEXT("%s"), *FString(dungeon->toString().c_str()));
 }
-
-
