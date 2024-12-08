@@ -96,6 +96,13 @@ public:
 	void print(TwoDArray<char>& out);
 
 	void build(UInstancedStaticMeshComponent* blocks);
+
+	void buildWalls(UInstancedStaticMeshComponent* blocks, unsigned int alt);
+
+	void buildWallSegment(UInstancedStaticMeshComponent* blocks, float r, float c,
+	                      float alt, float rScale, float cScale, float zScale);
+
+	bool hasAtPos(int row, int col);
 };
 
 class Dungeon

@@ -16,6 +16,9 @@
 #include <random>
 #include <sstream>
 
+#include "LandscapeDataAccess.h"
+#include "DSP/AudioDebuggingUtilities.h"
+
 enum
 {
 	NOTHING = 0x00000000,
@@ -242,15 +245,16 @@ void DungeonRoom::print(TwoDArray<char>& out)
 
 void DungeonRoom::build(UInstancedStaticMeshComponent* blocks)
 {
-	FMatrix transformMatrix = FMatrix(
-		FPlane(height * 1.0f, 0.0f, 0.0f, 0.0f),
-		FPlane(0.0f, width * 1.0f, 0.0f, 0.0f),
-		FPlane(0.0f, 0.0f, 0.2f, 0.0f),
-		FPlane(row * 100.0f, col * 100.0f, 0.0f, 1.0f)
-	);
+	unsigned int alt = random_in_range(4, 7);
 
-	blocks->AddInstance(FTransform(transformMatrix));
+	//builds the floor
+	buildWallSegment(blocks, row, col, 0, height, width, 0.2);
+	
+	//buils the ceiling
+	buildWallSegment(blocks, row, col, alt - 0.2, height, width, 0.2);
 
+#ifdef DEBUGGIN_DOORS
+	//DISABLED calls door.build on every door to build a 1x1 cube on the inside tile of every door
 	for (const auto& entry : doors)
 	{
 		for (const auto& door : entry.second)
@@ -258,6 +262,126 @@ void DungeonRoom::build(UInstancedStaticMeshComponent* blocks)
 			door.build(blocks, *this, entry.first);
 		}
 	}
+#endif
+
+	//builds the walls
+	buildWalls(blocks, alt);
+}
+
+void DungeonRoom::buildWalls(UInstancedStaticMeshComponent* blocks, unsigned int alt)
+{
+	/*
+	   r1, c1, r2, c2 visualized:
+	   
+	        * r1 r1 r1 r1 *
+	       c1 _  row_  _  c2
+	       c1 c  _  _  _  c2
+	       c1 o  _  _  _  c2
+	       c1 l  _  _  _  c2
+	        * r2 r2 r2 r2 *
+	 */
+	unsigned int r1 = row - 1;
+	unsigned int c1 = col - 1;
+	unsigned int r2 = (row + height);
+	unsigned int c2 = (col + width);
+	unsigned int doorHeight = 3;
+	unsigned int zScale = alt - doorHeight;
+
+	//builds four overhead walls
+	buildWallSegment(blocks, r1, c1, doorHeight, height + 2, 1, zScale);
+	buildWallSegment(blocks, r1, c2, doorHeight, height + 2, 1, zScale);
+	//rows is increased and width is decreased so that overhead walls do not overlap
+	buildWallSegment(blocks, r1, c1 + 1, doorHeight, 1, width, zScale);
+	buildWallSegment(blocks, r2, c1 + 1, doorHeight, 1, width, zScale);
+
+	
+	//repeats for c1 and c2
+	for (unsigned int i = c1; i <= c2; i += c2 - c1)
+	{
+		unsigned int rScale = 1;
+		unsigned int rStart = r1;
+
+		//loops over the row
+		//scale & loop begins at 1 and row because corners are never doors
+		for (unsigned int r = row; r <= r2; r++)
+		{
+			//if there is no door then increase the length of the wall segment
+			unless(hasAtPos(r, i))
+			{
+				rScale++;
+			}
+			//if there is a door then build a segment from the starting position with the pos and scale
+			else
+			{
+				buildWallSegment(blocks, rStart, i, 0, rScale, 1, doorHeight);
+				buildWallSegment(blocks, r, i, 0, 1, 1, 0.2);
+				rScale = 0;
+				rStart = r + 1;
+			}
+		}
+		//builds the final segment
+		//if there were no doors, builds the whole wall
+		buildWallSegment(blocks, rStart, i, 0, rScale, 1, doorHeight);
+	}
+	
+	//repeats for r1 and r2
+	for (unsigned int j = r1; j <= r2; j += r2 - r1)
+	{
+		unsigned int cScale = 0; 
+		unsigned int cStart = col;
+		//loops over the col
+		//scale & loop begins at 1 and row because corners are never doors
+		for (unsigned int c = col; c < c2; c++)
+		{
+			//if there is no door then increase the length of the wall segment
+			unless(hasAtPos(j, c))
+			{
+				cScale++;
+			}
+			//if there is a door then build a segment from the starting position with the pos and scale
+			else
+			{
+				buildWallSegment(blocks, j, cStart, 0, 1, cScale, doorHeight);
+				buildWallSegment(blocks, j, c, 0, 1, 1, 0.2);
+				cScale = 0;
+				cStart = c + 1;
+			}
+		}
+		//builds the final segment
+		//if there were no doors, builds the whole wall
+		if (cScale > 0)
+		{
+			buildWallSegment(blocks, j, cStart, 0, 1, cScale, doorHeight);
+		}
+	}
+}
+
+void DungeonRoom::buildWallSegment(UInstancedStaticMeshComponent* blocks, float r, float c,
+						  float alt, float rScale, float cScale, float zScale)
+{
+	FMatrix transformMatrix = FMatrix(
+		FPlane(rScale * 1.0f, 0.0f, 0.0f, 0.0f),
+		FPlane(0.0f, cScale * 1.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 0.0f, zScale * 1.0f, 0.0f),
+		FPlane(r * 100.0f, c * 100.0f, alt * 100.0f, 1.0f)
+	);
+
+	blocks->AddInstance(FTransform(transformMatrix));
+}
+
+bool DungeonRoom::hasAtPos(int r, int c)
+{
+	for (const auto& entry : doors)
+	{
+		for (const auto& door : entry.second)
+		{
+			if (door.row == r && door.col == c)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent, int perimeter_size)
