@@ -5,30 +5,17 @@
 
 void ARoom::build(UWorld* world)
 {
-	unsigned int alt = random_in_range(4, 7);
-
 	//builds the floor
 	buildWallSegment(0, 0, 0, height, width, 0.2);
 	
 	//builds the ceiling
 	buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
 
-#ifdef DEBUGGIN_DOORS
-	//DISABLED calls door.build on every door to build a 1x1 cube on the inside tile of every door
-	for (const auto& entry : doors)
-	{
-		for (const auto& door : entry.second)
-		{
-			door.build(blocks, *this, entry.first);
-		}
-	}
-#endif
-
 	//builds the walls
-	buildWalls(alt);
+	buildWalls(world);
 }
 
-void ARoom::buildWalls(unsigned int alt)
+void ARoom::buildWalls(UWorld* world)
 {
 	/*
 	   r1, c1, r2, c2 visualized:
@@ -110,6 +97,9 @@ void ARoom::buildWalls(unsigned int alt)
 			buildWallSegment(j, cStart, 0, 1, cScale, doorHeight);
 		}
 	}
+
+	
+	spawnEnemy(world);
 }
 
 void ARoom::buildOverheads(float r1, float c1, float r2, float c2,
@@ -123,17 +113,36 @@ void ARoom::buildOverheads(float r1, float c1, float r2, float c2,
 	buildWallSegment(r2, c1 + 1, doorHeight, 1, width, zScale);
 }
 
-void ARoom::buildWallSegment(float r, float c, float alt, float rScale,
+void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 	float cScale, float zScale)
 {
 	FMatrix transformMatrix = FMatrix(
 		FPlane(rScale * 1.0f, 0.0f, 0.0f, 0.0f),
 		FPlane(0.0f, cScale * 1.0f, 0.0f, 0.0f),
 		FPlane(0.0f, 0.0f, zScale * 1.0f, 0.0f),
-		FPlane(r * 100.0f, c * 100.0f, alt * 100.0f, 1.0f)
+		FPlane(r * 100.0f, c * 100.0f, alty * 100.0f, 1.0f)
 	);
 
 	blocks->AddInstance(FTransform(transformMatrix));
+}
+
+AActor* ARoom::spawnEnemy(UWorld* world)
+{
+	FVector spawnPos = GetActorLocation();
+	FVector spawnLocation(spawnPos.X + height / 2.f * 100.f, spawnPos.Y + width / 2.f * 100.f, 109.f);
+
+	// Spawn the actor.
+	AActor* spawnedEnemy = world->SpawnActorDeferred<AActor>(enemy, FTransform(spawnLocation), this,
+														  nullptr);
+	if (spawnedEnemy)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedEnemy->GetName());
+
+		return spawnedEnemy;
+	}
+	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
+
+	return nullptr;
 }
 
 bool ARoom::hasAtPos(int row, int col)
@@ -152,6 +161,7 @@ bool ARoom::hasAtPos(int row, int col)
 }
 
 ARoom::ARoom()
+	: enemies(std::vector<AActor*>())
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -165,9 +175,21 @@ ARoom::ARoom()
 	if (cubeMesh.Succeeded())
 	{
 		blocks->SetStaticMesh(cubeMesh.Object);
-	} else
+	}
+	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Could not find the cube mesh"));
+	}
+
+		//													   /Game/EnemyStuff/BP_EnemyAI
+	static ConstructorHelpers::FObjectFinder<UBlueprint> foe(TEXT("/Game/EnemyStuff/BP_EnemyAI"));
+	if (foe.Succeeded())
+	{
+		enemy = foe.Object->GeneratedClass;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find the enemy blueprint"));
 	}
 }
 
@@ -175,6 +197,11 @@ ARoom::~ARoom()
 {
 	blocks->ClearInstances();
 	delete blocks;
+	for (auto entry : enemies)
+	{
+		entry->Destroy();
+	}
+	enemies.clear();
 }
 
 
@@ -185,6 +212,12 @@ void ARoom::OnConstruction(const FTransform& Transform)
 	UWorld* world = GetWorld();
 
 	blocks->ClearInstances();
+
+	for (auto entry : enemies)
+	{
+		entry->Destroy();
+	}
+	enemies.clear();
 
 	build(world);
 }

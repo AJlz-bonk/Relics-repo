@@ -14,6 +14,7 @@
 UCLASS()
 class RELICS_API ARoom : public AActor
 {
+	std::vector<AActor*> enemies;
 	GENERATED_BODY()
 
 public:
@@ -24,24 +25,32 @@ public:
 	UPROPERTY(EditAnywhere)
 	class UInstancedStaticMeshComponent* blocks;
 
+	UPROPERTY(EditAnywhere)
+	class UClass* enemy;
+
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
 	uint32 height;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
 	uint32 width;
 
+	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+	uint32 alt;
+
 	std::map<std::string, std::vector<Door>> doors;
 
 	virtual void OnConstruction(const FTransform& Transform) override;
 
-protected:
+private:
 	void build(UWorld* world);
 
-	void buildWalls(unsigned int alt);
+	void buildWalls(UWorld* world);
 
 	void buildOverheads(float r1, float c1, float r2, float c2, float doorHeight, float zScale);
 
 	void buildWallSegment(float r, float c, float alt, float rScale, float cScale, float zScale);
-
+	
 	bool hasAtPos(int row, int col);
+
+	AActor* spawnEnemy(UWorld* world);
 };

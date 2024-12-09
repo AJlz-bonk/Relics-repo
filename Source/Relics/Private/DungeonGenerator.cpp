@@ -132,10 +132,8 @@ void DungeonRoom::print(TwoDArray<char>& out)
 ARoom* DungeonRoom::build(UWorld* world, ADungeonGenerator* generator)
 {
 	FVector spawnLocation(row * 100.f, col * 100.f, 0.f);
-	FRotator spawnRotation(0.f, 0.f, 0.f);
 
-	FActorSpawnParameters spawnParams;
-	spawnParams.Owner = generator; // Set this actor as the owner.
+	int alt = random_in_range(4, 7);
 
 	// Spawn the actor.
 	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), FTransform(spawnLocation), generator,
@@ -153,17 +151,15 @@ ARoom* DungeonRoom::build(UWorld* world, ADungeonGenerator* generator)
 		}
 		spawnedRoom->height = height;
 		spawnedRoom->width = width;
+		spawnedRoom->alt = alt;
 		spawnedRoom->doors = doorsies;
-		UE_LOG(LogTemp, Warning, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
+		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
 
 		return spawnedRoom;
 	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
+	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 
-		return nullptr;
-	}
+	return nullptr;
 }
 
 Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent, int perimeter_size)
