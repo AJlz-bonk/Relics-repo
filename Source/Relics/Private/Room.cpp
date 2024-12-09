@@ -181,7 +181,6 @@ ARoom::ARoom()
 		UE_LOG(LogTemp, Error, TEXT("Could not find the cube mesh"));
 	}
 
-		//													   /Game/EnemyStuff/BP_EnemyAI
 	static ConstructorHelpers::FObjectFinder<UBlueprint> foe(TEXT("/Game/EnemyStuff/BP_EnemyAI"));
 	if (foe.Succeeded())
 	{
@@ -195,6 +194,8 @@ ARoom::ARoom()
 
 ARoom::~ARoom()
 {
+	UE_LOG(LogTemp, Warning, TEXT("ARoom destructor called"));
+	/*
 	blocks->ClearInstances();
 	delete blocks;
 	for (auto entry : enemies)
@@ -202,13 +203,29 @@ ARoom::~ARoom()
 		entry->Destroy();
 	}
 	enemies.clear();
+	*/
 }
 
 
 void ARoom::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	
+	int h = 0;
+	for (const auto& entry : doors)
+	{
+		for (const auto& door : entry.second)
+		{
+			h++;
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("OnConstruction called: w=%d, h=%d, doors:%d"), width, height, h);
 
+	if (h == 0)
+	{
+		return;
+	}
+	
 	UWorld* world = GetWorld();
 
 	blocks->ClearInstances();

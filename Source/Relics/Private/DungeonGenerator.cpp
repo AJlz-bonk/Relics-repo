@@ -948,12 +948,15 @@ ADungeonGenerator::ADungeonGenerator()
 
 ADungeonGenerator::~ADungeonGenerator()
 {
+	UE_LOG(LogTemp, Warning, TEXT("ADungeonGenerator destructor called"));
+	/*
 	delete dungeon;
 	for (auto entry : roomsies)
 	{
 		entry->Destroy();
 	}
 	roomsies.clear();
+	*/
 }
 
 void ADungeonGenerator::init()
