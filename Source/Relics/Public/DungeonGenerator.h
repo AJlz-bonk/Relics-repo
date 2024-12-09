@@ -5,29 +5,10 @@
 #include <vector>
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "TwoDArray.h"
+#include "Door.h"
+#include "Room.h"
 #include "DungeonGenerator.generated.h"
-
-template <typename T>
-class TwoDArray
-{
-	int rows;
-	int cols;
-	T nil;
-	T* data;
-
-public:
-	TwoDArray(int r, int c);
-
-	~TwoDArray();
-
-	T& get(int i, int j);
-
-	void set(int i, int j, T val);
-
-	void fill(const T& val);
-
-	void print();
-};
 
 class CloseEnd
 {
@@ -45,22 +26,6 @@ public:
 };
 
 class DungeonRoom;
-
-class Door
-{
-public:
-	int row;
-	int col;
-	std::string key;
-	std::string type;
-	unsigned int out_id;
-
-	Door(int row, int col, std::string key, std::string type, unsigned int out_id);
-
-	void print(TwoDArray<char>& out, std::string dir) const;
-
-	void build(UInstancedStaticMeshComponent* blocks, DungeonRoom& room, std::string dir) const;
-};
 
 class Sill
 {
@@ -95,14 +60,7 @@ public:
 
 	void print(TwoDArray<char>& out);
 
-	void build(UInstancedStaticMeshComponent* blocks);
-
-	void buildWalls(UInstancedStaticMeshComponent* blocks, unsigned int alt);
-
-	void buildWallSegment(UInstancedStaticMeshComponent* blocks, float r, float c,
-	                      float alt, float rScale, float cScale, float zScale);
-
-	bool hasAtPos(int row, int col);
+	ARoom* build(UWorld* world, ADungeonGenerator* generator);
 };
 
 class Dungeon
@@ -191,12 +149,13 @@ public:
 
 	std::string toString();
 
-	void build(UInstancedStaticMeshComponent* floors);
+	std::vector<ARoom*> build(UWorld* world, ADungeonGenerator* generator);
 };
 
 UCLASS()
 class RELICS_API ADungeonGenerator : public AActor
 {
+	std::vector<ARoom*> roomsies;
 	Dungeon* dungeon;
 	GENERATED_BODY()
 
@@ -209,16 +168,15 @@ public:
 
 	void print_dungeon();
 
+	void buildBasePlate();
+
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
 	class UInstancedStaticMeshComponent* blocks;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
-	uint32 n_rows;
-
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
-	uint32 n_cols;
+	uint32 size;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
 	uint32 room_min;

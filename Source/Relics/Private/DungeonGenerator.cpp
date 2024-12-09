@@ -15,9 +15,7 @@
 #include <iomanip>
 #include <random>
 #include <sstream>
-
-#include "LandscapeDataAccess.h"
-#include "DSP/AudioDebuggingUtilities.h"
+#include "Relics/Utils/Utils.h"
 
 enum
 {
@@ -57,67 +55,6 @@ std::map<std::string, std::string> opposite =
 	{"north", "south"}, {"south", "north"}, {"west", "east"}, {"east", "west"}
 };
 
-#define unless(cond) if (!(cond))
-
-template <typename T>
-TwoDArray<T>::TwoDArray(int r, int c) : rows(r), cols(c), data(new T[r * c])
-{
-}
-
-template <typename T>
-TwoDArray<T>::~TwoDArray()
-{
-	delete[] data;
-}
-
-template <typename T>
-T& TwoDArray<T>::get(int i, int j)
-{
-	if (0 <= i && i < rows && 0 <= j && j < cols)
-	{
-		return data[i * cols + j];
-	}
-	return nil;
-}
-
-template <typename T>
-void TwoDArray<T>::set(int i, int j, T val)
-{
-	if (0 <= i && i < rows && 0 <= j && j < cols)
-	{
-		data[i * cols + j] = val;
-		return;
-	}
-	return;
-}
-
-template <typename T>
-void TwoDArray<T>::fill(const T& val)
-{
-	for (int i = 0; i < rows; i++)
-	{
-		for (int j = 0; j < cols; j++)
-		{
-			data[i * cols + j] = val;
-		}
-	}
-}
-
-template <typename T>
-void TwoDArray<T>::print()
-{
-	std::cout << std::hex;
-	for (int i = 0; i < rows; i++)
-	{
-		for (int j = 0; j < cols; j++)
-		{
-			std::cout << std::setw(8) << data[i * cols + j] << " ";
-		}
-		std::cout << std::endl;
-	}
-	std::cout << std::dec << std::endl;
-}
-
 CloseEnd::CloseEnd(std::vector<std::pair<int, int>> walled, std::vector<std::pair<int, int>> close,
                    std::pair<int, int> recurse)
 	: walled(std::move(walled)), close(std::move(close)), recurse(recurse)
@@ -135,60 +72,9 @@ CloseEnd::CloseEnd()
 {
 }
 
-Door::Door(int row, int col, std::string key, std::string type, unsigned int out_id)
-	: row(row), col(col), key(std::move(key)), type(std::move(type)), out_id(out_id)
-{
-}
-
-void Door::print(TwoDArray<char>& out, std::string dir) const
-{
-	out.set(row, col, key.at(0));
-}
-
-void Door::build(UInstancedStaticMeshComponent* blocks, DungeonRoom& room, std::string dir) const
-{
-	unsigned int x = row;
-	unsigned int y = col;
-
-	if (dir == "north")
-	{
-		x++;
-	}
-	else if (dir == "south")
-	{
-		x--;
-	}
-	else if (dir == "west")
-	{
-		y++;
-	}
-	else if (dir == "east")
-	{
-		y--;
-	}
-
-	//unless((x == room.row || x == room.row + room.height - 1) && (y == room.col || y == room.col + room.width - 1))
-	{
-		FMatrix transformMatrix = FMatrix(
-			FPlane(1.0f, 0.0f, 0.0f, 0.0f),
-			FPlane(0.0f, 1.0f, 0.0f, 0.0f),
-			FPlane(0.0f, 0.0f, 1.0f, 0.0f),
-			FPlane(x * 100.0f, y * 100.0f, 0.0f, 1.0f)
-		);
-
-		blocks->AddInstance(FTransform(transformMatrix));
-	}
-}
-
-
 Sill::Sill(int sill_r, int sill_c, std::string dir, int door_r, int door_c, unsigned int out_id)
 	: sill_r(sill_r), sill_c(sill_c), dir(std::move(dir)), door_r(door_r), door_c(door_c), out_id(out_id)
 {
-}
-
-int random_in_range(int min, int max)
-{
-	return std::rand() % (max - min + 1) + min;
 }
 
 DungeonRoom::DungeonRoom(unsigned int id, int row, int col, int north, int south, int west, int east, int height,
@@ -243,145 +129,41 @@ void DungeonRoom::print(TwoDArray<char>& out)
 	}
 }
 
-void DungeonRoom::build(UInstancedStaticMeshComponent* blocks)
+ARoom* DungeonRoom::build(UWorld* world, ADungeonGenerator* generator)
 {
-	unsigned int alt = random_in_range(4, 7);
+	FVector spawnLocation(row * 100.f, col * 100.f, 0.f);
+	FRotator spawnRotation(0.f, 0.f, 0.f);
 
-	//builds the floor
-	buildWallSegment(blocks, row, col, 0, height, width, 0.2);
-	
-	//buils the ceiling
-	buildWallSegment(blocks, row, col, alt - 0.2, height, width, 0.2);
+	FActorSpawnParameters spawnParams;
+	spawnParams.Owner = generator; // Set this actor as the owner.
 
-#ifdef DEBUGGIN_DOORS
-	//DISABLED calls door.build on every door to build a 1x1 cube on the inside tile of every door
-	for (const auto& entry : doors)
+	// Spawn the actor.
+	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), FTransform(spawnLocation), generator,
+	                                                      nullptr);
+	if (spawnedRoom)
 	{
-		for (const auto& door : entry.second)
+		//makes a list of doors with coordinates relative to rooms instead of world origin
+		std::map<std::string, std::vector<Door>> doorsies = std::map<std::string, std::vector<Door>>();
+		for (const auto& entry : doors)
 		{
-			door.build(blocks, *this, entry.first);
+			for (const auto& door : entry.second)
+			{
+				doorsies[entry.first].push_back(Door(door.row - row, door.col - col, door.key, door.type, door.out_id));
+			}
 		}
+		spawnedRoom->height = height;
+		spawnedRoom->width = width;
+		spawnedRoom->doors = doorsies;
+		UE_LOG(LogTemp, Warning, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
+
+		return spawnedRoom;
 	}
-#endif
-
-	//builds the walls
-	buildWalls(blocks, alt);
-}
-
-void DungeonRoom::buildWalls(UInstancedStaticMeshComponent* blocks, unsigned int alt)
-{
-	/*
-	   r1, c1, r2, c2 visualized:
-	   
-	        * r1 r1 r1 r1 *
-	       c1 _  row_  _  c2
-	       c1 c  _  _  _  c2
-	       c1 o  _  _  _  c2
-	       c1 l  _  _  _  c2
-	        * r2 r2 r2 r2 *
-	 */
-	unsigned int r1 = row - 1;
-	unsigned int c1 = col - 1;
-	unsigned int r2 = (row + height);
-	unsigned int c2 = (col + width);
-	unsigned int doorHeight = 3;
-	unsigned int zScale = alt - doorHeight;
-
-	//builds four overhead walls
-	buildWallSegment(blocks, r1, c1, doorHeight, height + 2, 1, zScale);
-	buildWallSegment(blocks, r1, c2, doorHeight, height + 2, 1, zScale);
-	//rows is increased and width is decreased so that overhead walls do not overlap
-	buildWallSegment(blocks, r1, c1 + 1, doorHeight, 1, width, zScale);
-	buildWallSegment(blocks, r2, c1 + 1, doorHeight, 1, width, zScale);
-
-	
-	//repeats for c1 and c2
-	for (unsigned int i = c1; i <= c2; i += c2 - c1)
+	else
 	{
-		unsigned int rScale = 1;
-		unsigned int rStart = r1;
+		UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 
-		//loops over the row
-		//scale & loop begins at 1 and row because corners are never doors
-		for (unsigned int r = row; r <= r2; r++)
-		{
-			//if there is no door then increase the length of the wall segment
-			unless(hasAtPos(r, i))
-			{
-				rScale++;
-			}
-			//if there is a door then build a segment from the starting position with the pos and scale
-			else
-			{
-				buildWallSegment(blocks, rStart, i, 0, rScale, 1, doorHeight);
-				buildWallSegment(blocks, r, i, 0, 1, 1, 0.2);
-				rScale = 0;
-				rStart = r + 1;
-			}
-		}
-		//builds the final segment
-		//if there were no doors, builds the whole wall
-		buildWallSegment(blocks, rStart, i, 0, rScale, 1, doorHeight);
+		return nullptr;
 	}
-	
-	//repeats for r1 and r2
-	for (unsigned int j = r1; j <= r2; j += r2 - r1)
-	{
-		unsigned int cScale = 0; 
-		unsigned int cStart = col;
-		//loops over the col
-		//scale & loop begins at 1 and row because corners are never doors
-		for (unsigned int c = col; c < c2; c++)
-		{
-			//if there is no door then increase the length of the wall segment
-			unless(hasAtPos(j, c))
-			{
-				cScale++;
-			}
-			//if there is a door then build a segment from the starting position with the pos and scale
-			else
-			{
-				buildWallSegment(blocks, j, cStart, 0, 1, cScale, doorHeight);
-				buildWallSegment(blocks, j, c, 0, 1, 1, 0.2);
-				cScale = 0;
-				cStart = c + 1;
-			}
-		}
-		//builds the final segment
-		//if there were no doors, builds the whole wall
-		if (cScale > 0)
-		{
-			buildWallSegment(blocks, j, cStart, 0, 1, cScale, doorHeight);
-		}
-	}
-}
-
-void DungeonRoom::buildWallSegment(UInstancedStaticMeshComponent* blocks, float r, float c,
-						  float alt, float rScale, float cScale, float zScale)
-{
-	FMatrix transformMatrix = FMatrix(
-		FPlane(rScale * 1.0f, 0.0f, 0.0f, 0.0f),
-		FPlane(0.0f, cScale * 1.0f, 0.0f, 0.0f),
-		FPlane(0.0f, 0.0f, zScale * 1.0f, 0.0f),
-		FPlane(r * 100.0f, c * 100.0f, alt * 100.0f, 1.0f)
-	);
-
-	blocks->AddInstance(FTransform(transformMatrix));
-}
-
-bool DungeonRoom::hasAtPos(int r, int c)
-{
-	for (const auto& entry : doors)
-	{
-		for (const auto& door : entry.second)
-		{
-			if (door.row == r && door.col == c)
-			{
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 Dungeon::Dungeon(int n_rows, int n_cols, int room_min, int room_max, int seed, int deadends_percent, int perimeter_size)
@@ -1131,28 +913,23 @@ std::string Dungeon::toString()
 	return ss.str();
 }
 
-void Dungeon::build(UInstancedStaticMeshComponent* floors)
+std::vector<ARoom*> Dungeon::build(UWorld* world, ADungeonGenerator* generator)
 {
+	std::vector<ARoom*> roomsies = std::vector<ARoom*>();
 	for (const auto& entry : rooms)
 	{
-		entry.second->build(floors);
+		ARoom* room = entry.second->build(world, generator);
+		unless(room == nullptr)
+		{
+			roomsies.push_back(room);
+		}
 	}
-}
-
-int getRandomInt()
-{
-	std::random_device rd;
-
-	// Use Mersenne Twister engine for random number generation
-	std::mt19937 gen(rd());
-
-	std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
-
-	return distrib(gen);
+	return roomsies;
 }
 
 ADungeonGenerator::ADungeonGenerator()
-	: dungeon(nullptr), n_rows(64), n_cols(64), room_min(3), room_max(5), seed(getRandomInt()), perimeter_size(5)
+	: roomsies(std::vector<ARoom*>()), dungeon(nullptr), size(64), room_min(3), room_max(5), seed(getRandomInt()),
+	  perimeter_size(5)
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -1161,11 +938,26 @@ ADungeonGenerator::ADungeonGenerator()
 
 	blocks = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Walls"));
 	blocks->SetupAttachment(SceneComponent);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> cubeMesh(TEXT("/Game/LevelPrototyping/Meshes/SM_Cube"));
+	if (cubeMesh.Succeeded())
+	{
+		blocks->SetStaticMesh(cubeMesh.Object);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find the cube mesh"));
+	}
 }
 
 ADungeonGenerator::~ADungeonGenerator()
 {
 	delete dungeon;
+	for (auto entry : roomsies)
+	{
+		entry->Destroy();
+	}
+	roomsies.clear();
 }
 
 void ADungeonGenerator::init()
@@ -1175,13 +967,27 @@ void ADungeonGenerator::init()
 		delete dungeon;
 	}
 
-	dungeon = new Dungeon(n_rows, n_cols, room_min, room_max, seed, 0, perimeter_size);
+	dungeon = new Dungeon(size, size, room_min, room_max, seed, 0, perimeter_size);
+
+	UE_LOG(LogRelics, Log, TEXT("init_cells"));
 	dungeon->init_cells();
+
+	UE_LOG(LogRelics, Log, TEXT("emplace_rooms"));
 	dungeon->emplace_rooms();
+
+	UE_LOG(LogRelics, Log, TEXT("open_rooms"));
 	dungeon->open_rooms();
+
+	UE_LOG(LogRelics, Log, TEXT("label_rooms"));
 	dungeon->label_rooms();
+
+	UE_LOG(LogRelics, Log, TEXT("corridors"));
 	dungeon->corridors();
+
+	UE_LOG(LogRelics, Log, TEXT("clean_dungeon"));
 	dungeon->clean_dungeon();
+
+	UE_LOG(LogRelics, Log, TEXT("done init"));
 }
 
 void ADungeonGenerator::print_dungeon()
@@ -1192,16 +998,38 @@ void ADungeonGenerator::print_dungeon()
 	}
 }
 
+void ADungeonGenerator::buildBasePlate()
+{
+	FMatrix transformMatrix = FMatrix(
+		FPlane(size * 1.0f, 0.0f, 0.0f, 0.0f),
+		FPlane(0.0f, size * 1.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 0.0f, 1.0f, 0.0f),
+		FPlane(0.0f, 0.0f, -100.0f, 1.0f)
+	);
+
+	blocks->ClearInstances();
+	blocks->AddInstance(FTransform(transformMatrix));
+}
+
 void ADungeonGenerator::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	//UE_LOG(LogRelics, Log, TEXT("AADungeonGenerator::OnConstruction called"));
+	UWorld* world = GetWorld();
 
 	init();
 
-	blocks->ClearInstances();
+	//clears the list of room actors so that new ones can be created
+	for (auto entry : roomsies)
+	{
+		entry->Destroy();
+	}
+	roomsies.clear();
 
-	dungeon->build(blocks);
-	UE_LOG(LogRelics, Log, TEXT("%s"), *FString(dungeon->toString().c_str()));
+	roomsies = dungeon->build(world, this);
+
+	buildBasePlate();
+
+	delete dungeon;
+	dungeon = nullptr;
 }
