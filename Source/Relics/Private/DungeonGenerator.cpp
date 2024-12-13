@@ -132,12 +132,12 @@ void DungeonRoom::print(TwoDArray<char>& out)
 ARoom* DungeonRoom::build(UWorld* world, ADungeonGenerator* generator)
 {
 	FVector spawnLocation(row * 100.f, col * 100.f, 0.f);
+	FTransform spawnTransform(spawnLocation);
 
 	int alt = random_in_range(4, 7);
 
 	// Spawn the actor.
-	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), FTransform(spawnLocation), generator,
-	                                                      nullptr);
+	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), spawnTransform, generator, nullptr);
 	if (spawnedRoom)
 	{
 		//makes a list of doors with coordinates relative to rooms instead of world origin
@@ -153,6 +153,7 @@ ARoom* DungeonRoom::build(UWorld* world, ADungeonGenerator* generator)
 		spawnedRoom->width = width;
 		spawnedRoom->alt = alt;
 		spawnedRoom->doors = doorsies;
+		spawnedRoom->OnConstruction(spawnTransform);
 		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
 
 		return spawnedRoom;
@@ -1016,14 +1017,15 @@ void ADungeonGenerator::OnConstruction(const FTransform& Transform)
 
 	UWorld* world = GetWorld();
 
-	init();
-
 	//clears the list of room actors so that new ones can be created
 	for (auto entry : roomsies)
 	{
+		entry->clearEnemies();
 		entry->Destroy();
 	}
 	roomsies.clear();
+
+	init();
 
 	roomsies = dungeon->build(world, this);
 

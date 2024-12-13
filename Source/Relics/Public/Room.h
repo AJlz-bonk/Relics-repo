@@ -14,6 +14,7 @@
 UCLASS()
 class RELICS_API ARoom : public AActor
 {
+	bool constructed;
 	std::vector<AActor*> enemies;
 	GENERATED_BODY()
 
@@ -40,6 +41,8 @@ public:
 	std::map<std::string, std::vector<Door>> doors;
 
 	virtual void OnConstruction(const FTransform& Transform) override;
+
+	void clearEnemies();
 
 private:
 	void build(UWorld* world);

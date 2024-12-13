@@ -1,5 +1,5 @@
 #include "Room.h"
-
+#include "../Relics.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Relics/Utils/Utils.h"
 
@@ -7,12 +7,15 @@ void ARoom::build(UWorld* world)
 {
 	//builds the floor
 	buildWallSegment(0, 0, 0, height, width, 0.2);
-	
+
 	//builds the ceiling
 	buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
 
 	//builds the walls
 	buildWalls(world);
+
+	enemies.push_back(spawnEnemy(world));
+	UE_LOG(LogRelics, Log, TEXT("added enemy"));
 }
 
 void ARoom::buildWalls(UWorld* world)
@@ -37,7 +40,7 @@ void ARoom::buildWalls(UWorld* world)
 	unsigned int zScale = alt - doorHeight;
 
 	buildOverheads(r1, c1, r2, c2, doorHeight, zScale);
-	
+
 	//repeats for c1 and c2
 	for (int i = c1; i <= c2; i += c2 - c1)
 	{
@@ -66,11 +69,11 @@ void ARoom::buildWalls(UWorld* world)
 		//if there were no doors, builds the whole wall
 		buildWallSegment(rStart, i, 0, rScale, 1, doorHeight);
 	}
-	
+
 	//repeats for r1 and r2
 	for (int j = r1; j <= r2; j += r2 - r1)
 	{
-		int cScale = 0; 
+		int cScale = 0;
 		int cStart = col;
 		//loops over the col
 		//scale & loop begins at 1 and row because corners are never doors
@@ -97,13 +100,10 @@ void ARoom::buildWalls(UWorld* world)
 			buildWallSegment(j, cStart, 0, 1, cScale, doorHeight);
 		}
 	}
-
-	
-	spawnEnemy(world);
 }
 
 void ARoom::buildOverheads(float r1, float c1, float r2, float c2,
-	float doorHeight, float zScale)
+                           float doorHeight, float zScale)
 {
 	//builds four overhead walls
 	buildWallSegment(r1, c1, doorHeight, height + 2, 1, zScale);
@@ -114,7 +114,7 @@ void ARoom::buildOverheads(float r1, float c1, float r2, float c2,
 }
 
 void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
-	float cScale, float zScale)
+                             float cScale, float zScale)
 {
 	FMatrix transformMatrix = FMatrix(
 		FPlane(rScale * 1.0f, 0.0f, 0.0f, 0.0f),
@@ -133,10 +133,10 @@ AActor* ARoom::spawnEnemy(UWorld* world)
 
 	// Spawn the actor.
 	AActor* spawnedEnemy = world->SpawnActorDeferred<AActor>(enemy, FTransform(spawnLocation), this,
-														  nullptr);
+	                                                         nullptr);
 	if (spawnedEnemy)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedEnemy->GetName());
+		//UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedEnemy->GetName());
 
 		return spawnedEnemy;
 	}
@@ -160,8 +160,19 @@ bool ARoom::hasAtPos(int row, int col)
 	return false;
 }
 
+void ARoom::clearEnemies()
+{
+	//UE_LOG(LogRelics, Log, TEXT("clear %d enemies"), static_cast<int>(enemies.size()));
+
+	for (auto entry : enemies)
+	{
+		entry->Destroy();
+	}
+	enemies.clear();
+}
+
 ARoom::ARoom()
-	: enemies(std::vector<AActor*>())
+	: constructed(false), enemies(std::vector<AActor*>())
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -195,12 +206,15 @@ ARoom::ARoom()
 ARoom::~ARoom()
 {
 	UE_LOG(LogTemp, Warning, TEXT("ARoom destructor called"));
+
 	/*
 	blocks->ClearInstances();
 	delete blocks;
+
 	for (auto entry : enemies)
 	{
 		entry->Destroy();
+		//UE_LOG(LogRelics, Log, TEXT("Enemy destroyed!!!"));
 	}
 	enemies.clear();
 	*/
@@ -210,31 +224,24 @@ ARoom::~ARoom()
 void ARoom::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	
-	int h = 0;
-	for (const auto& entry : doors)
-	{
-		for (const auto& door : entry.second)
-		{
-			h++;
-		}
-	}
-	UE_LOG(LogTemp, Warning, TEXT("OnConstruction called: w=%d, h=%d, doors:%d"), width, height, h);
 
-	if (h == 0)
+	if (constructed)
 	{
 		return;
 	}
+	constructed = true;
 	
+	if (doors.size() == 0)
+	{
+		return;
+	}
+
+	//UE_LOG(LogTemp, Log, TEXT("OnConstruction called: w=%d, h=%d, doors:%d, enemyCount:%d"), width, height,
+	//       static_cast<int>(doors.size()), static_cast<int>(enemies.size()));
+
 	UWorld* world = GetWorld();
 
 	blocks->ClearInstances();
-
-	for (auto entry : enemies)
-	{
-		entry->Destroy();
-	}
-	enemies.clear();
-
+	
 	build(world);
 }
