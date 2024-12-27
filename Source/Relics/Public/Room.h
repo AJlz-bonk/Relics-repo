@@ -1,59 +1,56 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
-
-#include <map>
-#include <string>
 #include <vector>
 
+#include "TwoDArray.h"
 #include "CoreMinimal.h"
+#include "RoomImpl.h"
 #include "GameFramework/Actor.h"
-#include "Door.h"
+#include "Relics/Utils/Utils.h"
 #include "Room.generated.h"
 
 UCLASS()
 class RELICS_API ARoom : public AActor
 {
+public:
 	bool constructed;
 	std::vector<AActor*> enemies;
 	GENERATED_BODY()
+	
+	RoomImpl room;
+	RandomGenerator rg;
+
+	void build(UWorld* world);
+	AActor* spawnEnemy(UWorld* world);
 
 public:
 	ARoom();
-
 	~ARoom();
+
+	void init(const RoomImpl& roomRef, RandomGenerator& rgRef);
+	void buildWalls();
+	void buildWall(std::vector<std::pair<int, int>>& walls);
+	void buildVerticalWall(std::pair<int, int>& p1, std::pair<int, int>& p2);
+	void buildHorizontalWall(std::pair<int, int>& p1, std::pair<int, int>& p2);
+	void buildOverheads();
+	void buildWallSegment(float r, float c, float alty, float rScale,
+							 float cScale, float zScale);
 
 	UPROPERTY(EditAnywhere)
 	class UInstancedStaticMeshComponent* blocks;
 
 	UPROPERTY(EditAnywhere)
 	class UClass* enemy;
-
+    
+	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
+	uint32 width;
+    
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
 	uint32 height;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
-	uint32 width;
-
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
 	uint32 alt;
-
-	std::map<std::string, std::vector<Door>> doors;
-
-	virtual void OnConstruction(const FTransform& Transform) override;
-
-	void clearEnemies();
-
-private:
-	void build(UWorld* world);
-
-	void buildWalls(UWorld* world);
-
-	void buildOverheads(float r1, float c1, float r2, float c2, float doorHeight, float zScale);
-
-	void buildWallSegment(float r, float c, float alt, float rScale, float cScale, float zScale);
 	
-	bool hasAtPos(int row, int col);
-
-	AActor* spawnEnemy(UWorld* world);
+	virtual void OnConstruction(const FTransform& Transform) override;
+    
+	void clearEnemies();
 };

@@ -1,86 +1,133 @@
 ﻿#pragma once
+#include <iostream>
+#include <set>
+#include <string>
 
-template <typename T>
+#include "Utils.h"
+
 class TwoDArray
 {
-	int rows;
-	int cols;
-	T nil;
-	T* data;
+    const int row;
+    const int col;
+    int overflow;
+    std::string data;
+    const char empty;
+    const std::set<char> nonBlocking = {'X'};
 
 public:
-	TwoDArray(int r, int c);
+    TwoDArray(const int row, const int col, const char empty = '-') :
+        row(row), col(col), overflow(10), data(row * (col + 1), empty), empty(empty)
+    {
+        const int max = static_cast<int>(data.size());
+        for (int i = col; i < max; i += col + 1)
+        {
+            data[i] = '\n';
+        }
+    }
 
-	~TwoDArray();
+    TwoDArray()
+        : row(0), col(0), overflow(10), data(0, '-'), empty('-')
+    {
+    }
 
-	T& get(int i, int j);
+    [[nodiscard]] char get(const int r, const int c, const char defaultValue = '\0') const
+    {
+        if (r >= 0 && r < row && c >= 0 && c < col)
+        {
+            return data[(row - r - 1) * (col + 1) + c];
+        }
+        if (defaultValue == '\0')
+        {
+            std::cout << "attempted to get out of bounds" << std::endl;
+        }
+        return defaultValue;
+    }
 
-	void set(int i, int j, T val);
+    void set(const int r, const int c, const char ch)
+    {
+        if (overflow < 0)
+        {
+            return;
+        }
+        if (r >= 0 && r < row && c >= 0 && c < col)
+        {
+            data[(row - r - 1) * (col + 1) + c] = ch;
+        }
+        else
+        {
+            std::cout << "attempted to set out of bounds" << std::endl;
+            overflow--;
+        }
+    }
 
-	void fill(const T& val);
+    [[nodiscard]] bool isEmpty(const int r, const int c, const int s, const int gap) const
+    {
+        if (s == 0)
+        {
+            return get(r, c) == empty;
+        }
+        if (r + s >= row || c + s >= col)
+        {
+            return false;
+        }
+        for (int i = -gap; i < s + gap; i++)
+        {
+            const char a = get(r + s, c + i, 'X');
+            const char b = get(r + i, c + s, 'X');
+            if (a == empty && b == empty)
+            {
+                continue;
+            }
+            if (nonBlocking.contains(a) && (i < 0 || i > s))
+            {
+                continue;
+            }
+            if (nonBlocking.contains(b) && (i < 0 || i > s))
+            {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
 
-	void print();
+    [[nodiscard]] bool isEmpty(const int r, const int c, const int w, const int h, const int gap)
+    {
+        for (int i = r - gap; i < r + h + gap; i++)
+        {
+            for (int j = c - gap; j < c + w + gap; j++)
+            {
+                const char a = get(i, j, 'X');
+                if (a == empty)
+                {
+                    continue;
+                }
+                if (nonBlocking.contains(a) && ((i < r || i > r + h) || (j < c || j > c + w)))
+                {
+                    continue;
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void fill(const int r, const int c, const int w, const int h, const int gap, const char ch)
+    {
+        for (int i = r; i < r + h; i++)
+        {
+            for (int j = c; j < c + w; j++)
+            {
+                set(i, j, ch);
+            }
+        }
+    }
+
+    friend inline std::ostream& operator<<(std::ostream& os, const TwoDArray& data);
 };
 
-#include <iomanip>
-#include <iostream>
-
-
-template <typename T>
-TwoDArray<T>::TwoDArray(int r, int c) : rows(r), cols(c), data(new T[r * c])
+inline std::ostream& operator<<(std::ostream& os, const TwoDArray& data)
 {
-}
-
-template <typename T>
-TwoDArray<T>::~TwoDArray()
-{
-	delete[] data;
-}
-
-template <typename T>
-T& TwoDArray<T>::get(int i, int j)
-{
-	if (0 <= i && i < rows && 0 <= j && j < cols)
-	{
-		return data[i * cols + j];
-	}
-	return nil;
-}
-
-template <typename T>
-void TwoDArray<T>::set(int i, int j, T val)
-{
-	if (0 <= i && i < rows && 0 <= j && j < cols)
-	{
-		data[i * cols + j] = val;
-		return;
-	}
-	return;
-}
-
-template <typename T>
-void TwoDArray<T>::fill(const T& val)
-{
-	for (int i = 0; i < rows; i++)
-	{
-		for (int j = 0; j < cols; j++)
-		{
-			data[i * cols + j] = val;
-		}
-	}
-}
-
-template <typename T>
-void TwoDArray<T>::print()
-{
-	std::cout << std::hex;
-	for (int i = 0; i < rows; i++)
-	{
-		for (int j = 0; j < cols; j++)
-		{
-			std::cout << std::setw(8) << data[i * cols + j] << " ";
-		}
-		std::cout << std::endl;
-	}
-	std::cout << std::dec << std::endl;
+    os << data.data;
+    return os;
 }

@@ -3,35 +3,99 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Relics/Utils/Utils.h"
 
-void ARoom::build(UWorld* world)
+#include <algorithm>
+
+#include "DSP/AudioDebuggingUtilities.h"
+
+void ARoom::buildWalls()
 {
-	//builds the floor
-	buildWallSegment(0, 0, 0, height, width, 0.2);
-
-	//builds the ceiling
-	buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
-
-	//builds the walls
-	buildWalls(world);
-
-	enemies.push_back(spawnEnemy(world));
-	UE_LOG(LogRelics, Log, TEXT("added enemy"));
+	buildWall(room.getWalls());
+	buildWall(room.getInteriorWalls());
 }
 
-void ARoom::buildWalls(UWorld* world)
+void ARoom::buildWall(std::vector<std::pair<int, int>>& walls)
 {
-	/*
-	   r1, c1, r2, c2 visualized:
-	   
-	        * r1 r1 r1 r1 *
-	       c1 _  row_  _  c2
-	       c1 c  _  _  _  c2
-	       c1 o  _  _  _  c2
-	       c1 l  _  _  _  c2
-	        * r2 r2 r2 r2 *
-	 */
-	int row = 0;
-	int col = 0;
+	bool isVert = true;
+	std::pair<int, int>* p1 = nullptr;
+
+	for (auto& p2 : walls)
+	{
+		if (p1)
+		{
+			isVert ? buildVerticalWall(*p1, p2) : buildHorizontalWall(*p1, p2);
+			isVert = !isVert;
+		}
+		p1 = &p2;
+	}
+	unless(p1 == nullptr)
+	{
+		isVert ? buildVerticalWall(*p1, walls[0]) : buildHorizontalWall(*p1, walls[0]);
+	}
+}
+
+void ARoom::buildVerticalWall(std::pair<int, int>& p1, std::pair<int, int>& p2)
+{
+	int row = std::min(p1.first, p2.first);
+	int rScale = 0;
+	int rStart = row;
+
+	//loops over the row
+	//scale & loop begins at 1 and row because corners are never doors
+	for (int r = row; r < std::max(p1.first, p2.first) + 1; r++)
+	{
+		//if there is no door then increase the length of the wall segment
+		unless(room.getDoors().contains({r, p1.second}))
+		{
+			rScale++;
+		}
+		//if there is a door then build a segment from the starting position with the pos and scale
+		else
+		{
+			buildWallSegment(rStart, p1.second, 0, rScale, 1, /*door height*/3);
+			buildWallSegment(r, p1.second, 0, 1, 1, 0.2);
+			rScale = 0;
+			rStart = r + 1;
+		}
+	}
+
+	//builds the final segment
+	//if there were no doors, builds the whole wall
+	buildWallSegment(rStart, p1.second, 0, rScale, 1, /*door height*/3);
+}
+
+void ARoom::buildHorizontalWall(std::pair<int, int>& p1, std::pair<int, int>& p2)
+{
+	int col = std::min(p1.second, p2.second) + 1;
+	int cScale = 0;
+	int cStart = col;
+	//loops over the col
+	//scale & loop begins at 1 and row because corners are never doors
+	for (int c = col; c < std::max(p1.second, p2.second); c++)
+	{
+		//if there is no door then increase the length of the wall segment
+		unless(room.getDoors().contains({p1.first, c}))
+		{
+			cScale++;
+		}
+		//if there is a door then build a segment from the starting position with the pos and scale
+		else
+		{
+			buildWallSegment(p1.first, cStart, 0, 1, cScale, /*door height*/3);
+			buildWallSegment(p1.first, c, 0, 1, 1, 0.2);
+			cScale = 0;
+			cStart = c + 1;
+		}
+	}
+	//builds the final segment
+	//if there were no doors, builds the whole wall
+	if (cScale > 0)
+	{
+		buildWallSegment(p1.first, cStart, 0, 1, cScale, /*door height*/3);
+	}
+}
+
+void ARoom::buildOverheads()
+{
 	int r1 = -1;
 	int c1 = -1;
 	int r2 = height;
@@ -39,72 +103,6 @@ void ARoom::buildWalls(UWorld* world)
 	unsigned int doorHeight = 3;
 	unsigned int zScale = alt - doorHeight;
 
-	buildOverheads(r1, c1, r2, c2, doorHeight, zScale);
-
-	//repeats for c1 and c2
-	for (int i = c1; i <= c2; i += c2 - c1)
-	{
-		int rScale = 1;
-		int rStart = r1;
-
-		//loops over the row
-		//scale & loop begins at 1 and row because corners are never doors
-		for (int r = row; r <= r2; r++)
-		{
-			//if there is no door then increase the length of the wall segment
-			unless(hasAtPos(r, i))
-			{
-				rScale++;
-			}
-			//if there is a door then build a segment from the starting position with the pos and scale
-			else
-			{
-				buildWallSegment(rStart, i, 0, rScale, 1, doorHeight);
-				buildWallSegment(r, i, 0, 1, 1, 0.2);
-				rScale = 0;
-				rStart = r + 1;
-			}
-		}
-		//builds the final segment
-		//if there were no doors, builds the whole wall
-		buildWallSegment(rStart, i, 0, rScale, 1, doorHeight);
-	}
-
-	//repeats for r1 and r2
-	for (int j = r1; j <= r2; j += r2 - r1)
-	{
-		int cScale = 0;
-		int cStart = col;
-		//loops over the col
-		//scale & loop begins at 1 and row because corners are never doors
-		for (int c = col; c < c2; c++)
-		{
-			//if there is no door then increase the length of the wall segment
-			unless(hasAtPos(j, c))
-			{
-				cScale++;
-			}
-			//if there is a door then build a segment from the starting position with the pos and scale
-			else
-			{
-				buildWallSegment(j, cStart, 0, 1, cScale, doorHeight);
-				buildWallSegment(j, c, 0, 1, 1, 0.2);
-				cScale = 0;
-				cStart = c + 1;
-			}
-		}
-		//builds the final segment
-		//if there were no doors, builds the whole wall
-		if (cScale > 0)
-		{
-			buildWallSegment(j, cStart, 0, 1, cScale, doorHeight);
-		}
-	}
-}
-
-void ARoom::buildOverheads(float r1, float c1, float r2, float c2,
-                           float doorHeight, float zScale)
-{
 	//builds four overhead walls
 	buildWallSegment(r1, c1, doorHeight, height + 2, 1, zScale);
 	buildWallSegment(r1, c2, doorHeight, height + 2, 1, zScale);
@@ -126,6 +124,22 @@ void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 	blocks->AddInstance(FTransform(transformMatrix));
 }
 
+void ARoom::build(UWorld* world)
+{
+	//builds the floor
+	buildWallSegment(1, 1, 0, height - 2, width - 2, 0.2);
+
+	//builds the ceiling
+	buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
+
+	//builds the walls
+	buildOverheads();
+	buildWalls();
+
+	enemies.push_back(spawnEnemy(world));
+	UE_LOG(LogRelics, Log, TEXT("added enemy"));
+}
+
 AActor* ARoom::spawnEnemy(UWorld* world)
 {
 	FVector spawnPos = GetActorLocation();
@@ -145,21 +159,6 @@ AActor* ARoom::spawnEnemy(UWorld* world)
 	return nullptr;
 }
 
-bool ARoom::hasAtPos(int row, int col)
-{
-	for (const auto& entry : doors)
-	{
-		for (const auto& door : entry.second)
-		{
-			if (door.row == row && door.col == col)
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 void ARoom::clearEnemies()
 {
 	//UE_LOG(LogRelics, Log, TEXT("clear %d enemies"), static_cast<int>(enemies.size()));
@@ -172,7 +171,8 @@ void ARoom::clearEnemies()
 }
 
 ARoom::ARoom()
-	: constructed(false), enemies(std::vector<AActor*>())
+	: constructed(false), enemies(std::vector<AActor*>()),
+	  width(0), height(0)
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -203,6 +203,7 @@ ARoom::ARoom()
 	}
 }
 
+
 ARoom::~ARoom()
 {
 	UE_LOG(LogTemp, Warning, TEXT("ARoom destructor called"));
@@ -220,6 +221,14 @@ ARoom::~ARoom()
 	*/
 }
 
+void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef)
+{
+	room = roomRef;
+	rg = rgRef;
+	width = roomRef.getWidth();
+	height = roomRef.getHeight();
+	alt = rgRef.getRandom(4, 7);
+}
 
 void ARoom::OnConstruction(const FTransform& Transform)
 {
@@ -230,8 +239,8 @@ void ARoom::OnConstruction(const FTransform& Transform)
 		return;
 	}
 	constructed = true;
-	
-	if (doors.size() == 0)
+
+	if (room.getDoors().size() == 0)
 	{
 		return;
 	}
@@ -242,6 +251,6 @@ void ARoom::OnConstruction(const FTransform& Transform)
 	UWorld* world = GetWorld();
 
 	blocks->ClearInstances();
-	
+
 	build(world);
 }
