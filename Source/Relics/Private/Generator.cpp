@@ -31,6 +31,7 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 	if (spawnedRoom)
 	{
 		spawnedRoom->init(room, rg);
+		spawnedRoom->OnConstruction(spawnTransform);
 
 		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
 		return spawnedRoom;
@@ -85,10 +86,10 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 	std::stringstream s;
 	s << generator << std::endl;
 	UE_LOG(LogTemp, Warning, TEXT("%hs"), s.str().c_str());
-
+	
 	for (auto room : generator.getRooms())
 	{
-		build(world, generator.getRandomGenerator(), room);
+		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
 	UE_LOG(LogTemp, Log, TEXT("OnConstruction finished"));
 }
@@ -101,4 +102,5 @@ void AGenerator::clearRooms()
 		entry->Destroy();
 	}
 	rooms.clear();
+	blocks->ClearInstances();
 }

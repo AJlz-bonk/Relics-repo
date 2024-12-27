@@ -5,8 +5,6 @@
 
 #include <algorithm>
 
-#include "DSP/AudioDebuggingUtilities.h"
-
 void ARoom::buildWalls()
 {
 	buildWall(room.getWalls());
@@ -127,13 +125,13 @@ void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 void ARoom::build(UWorld* world)
 {
 	//builds the floor
-	buildWallSegment(1, 1, 0, height - 2, width - 2, 0.2);
+	//buildWallSegment(1, 1, 0, height - 2, width - 2, 0.2);
 
 	//builds the ceiling
-	buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
+	//buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
 
 	//builds the walls
-	buildOverheads();
+	//buildOverheads();
 	buildWalls();
 
 	enemies.push_back(spawnEnemy(world));
@@ -168,6 +166,8 @@ void ARoom::clearEnemies()
 		entry->Destroy();
 	}
 	enemies.clear();
+
+	blocks->ClearInstances();
 }
 
 ARoom::ARoom()
@@ -209,7 +209,6 @@ ARoom::~ARoom()
 	UE_LOG(LogTemp, Warning, TEXT("ARoom destructor called"));
 
 	/*
-	blocks->ClearInstances();
 	delete blocks;
 
 	for (auto entry : enemies)
@@ -219,6 +218,8 @@ ARoom::~ARoom()
 	}
 	enemies.clear();
 	*/
+
+	clearEnemies();
 }
 
 void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef)
