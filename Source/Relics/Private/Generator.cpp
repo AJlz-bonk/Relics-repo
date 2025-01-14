@@ -80,7 +80,7 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 	buildBasePlate();
 
-	GeneratorImpl generator(size, room_min, room_max, gap, seed);
+	GeneratorImpl generator(size, room_min, room_max, gap, seed ? seed : RandomGenerator().getRandom());
 	generator.generate();
 
 	std::stringstream s;

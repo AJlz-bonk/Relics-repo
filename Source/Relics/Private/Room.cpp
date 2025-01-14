@@ -167,7 +167,10 @@ void ARoom::clearEnemies()
 	}
 	enemies.clear();
 
-	blocks->ClearInstances();
+	if (blocks != nullptr)
+	{
+		blocks->ClearInstances();
+	}
 }
 
 ARoom::ARoom()
