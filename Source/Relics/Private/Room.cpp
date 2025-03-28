@@ -159,18 +159,16 @@ AActor* ARoom::spawnEnemy(UWorld* world)
 
 void ARoom::clearEnemies()
 {
-	//UE_LOG(LogRelics, Log, TEXT("clear %d enemies"), static_cast<int>(enemies.size()));
-
-	for (auto entry : enemies)
-	{
-		entry->Destroy();
-	}
+	// for (auto entry : enemies)
+	// {
+	// 	entry->Destroy();
+	// }
 	enemies.clear();
 
-	if (blocks != nullptr)
-	{
-		blocks->ClearInstances();
-	}
+	// if (blocks != nullptr)
+	// {
+	// 	blocks->ClearInstances();
+	// }
 }
 
 ARoom::ARoom()

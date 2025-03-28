@@ -102,5 +102,5 @@ void AGenerator::clearRooms()
 		entry->Destroy();
 	}
 	rooms.clear();
-	blocks->ClearInstances();
+	//blocks->ClearInstances();
 }
