@@ -20,7 +20,7 @@ public:
 	RandomGenerator rg;
 
 	void build(UWorld* world);
-	AActor* spawnEnemy(UWorld* world);
+	AActor* spawnActors(UWorld* world);
 
 public:
 	ARoom();

@@ -50,7 +50,7 @@ void ARoom::buildVerticalWall(std::pair<int, int>& p1, std::pair<int, int>& p2)
 		else
 		{
 			buildWallSegment(rStart, p1.second, 0, rScale, 1, /*door height*/3);
-			buildWallSegment(r, p1.second, 0, 1, 1, 0.2);
+			//buildWallSegment(r, p1.second, 0, 1, 1, 0.2);
 			rScale = 0;
 			rStart = r + 1;
 		}
@@ -79,7 +79,7 @@ void ARoom::buildHorizontalWall(std::pair<int, int>& p1, std::pair<int, int>& p2
 		else
 		{
 			buildWallSegment(p1.first, cStart, 0, 1, cScale, /*door height*/3);
-			buildWallSegment(p1.first, c, 0, 1, 1, 0.2);
+			//buildWallSegment(p1.first, c, 0, 1, 1, 0.2);
 			cScale = 0;
 			cStart = c + 1;
 		}
@@ -134,11 +134,11 @@ void ARoom::build(UWorld* world)
 	//buildOverheads();
 	buildWalls();
 
-	enemies.push_back(spawnEnemy(world));
+	enemies.push_back(spawnActors(world));
 	UE_LOG(LogRelics, Log, TEXT("added enemy"));
 }
 
-AActor* ARoom::spawnEnemy(UWorld* world)
+AActor* ARoom::spawnActors(UWorld* world)
 {
 	FVector spawnPos = GetActorLocation();
 	FVector spawnLocation(spawnPos.X + height / 2.f * 100.f, spawnPos.Y + width / 2.f * 100.f, 109.f);
