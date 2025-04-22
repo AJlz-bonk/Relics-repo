@@ -137,7 +137,6 @@ void ARoom::build(UWorld* world)
 	buildWalls();
 
 	enemies.push_back(spawnActors(world));
-	UE_LOG(LogRelics, Log, TEXT("added enemy"));
 }
 
 AActor* ARoom::spawnActors(UWorld* world)

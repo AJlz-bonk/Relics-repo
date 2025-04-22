@@ -26,43 +26,40 @@ void AGenerator::buildBasePlate()
 
 void AGenerator::buildNavMesh()
 {
-	float SafeSize = FMath::Max(static_cast<uint32>(1), size); // ensure minimum value
-	FVector SpawnLocation(0.f, 0.f, 0.f);
-
-	// BoxExtent is half-size in UE terms
-	FVector BoxExtent(SafeSize * 100.f, SafeSize * 100.f, 100.f); // 200cm tall, adjust if needed
-
 	UWorld* World = GetWorld();
 	if (World)
 	{
+		FVector spawnLoc = FVector(size / 2.f * 100.f, size / 2.f * 100.f, 0.f);
 		FActorSpawnParameters SpawnParams;
 		ANavMeshBoundsVolume* NavVolume = World->SpawnActor<ANavMeshBoundsVolume>(
 			ANavMeshBoundsVolume::StaticClass(),
-			SpawnLocation,
+			spawnLoc,
 			FRotator::ZeroRotator,
 			SpawnParams
 		);
 
 		if (NavVolume)
 		{
-			// Set actual bounds through BoxComponent
-			UBoxComponent* BoxComp = Cast<UBoxComponent>(NavVolume->GetRootComponent());
+			// Create the BoxComponent
+			UBoxComponent* BoxComp = NewObject<UBoxComponent>(NavVolume);
 			if (BoxComp)
 			{
-				BoxComp->SetBoxExtent(BoxExtent); // Size in cm, not scale
-				BoxComp->SetWorldLocation(SpawnLocation); // update position
-				BoxComp->UpdateBounds();
-			}
+				BoxComp->RegisterComponent(); // VERY IMPORTANT
+				BoxComp->SetBoxExtent(FVector(size * 100.f / 2.f, size * 100.f / 2.f, 1000.f)); // half-extents = 1000x1000x20 total
+				BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				BoxComp->SetWorldLocation(NavVolume->GetActorLocation());
 
-			// No scale setting needed!
-			// Register with nav system
-			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-			if (NavSys)
-			{
-				NavSys->OnNavigationBoundsUpdated(NavVolume);
-			}
+				// Attach to actor and make root
+				NavVolume->SetRootComponent(BoxComp);
+				BoxComp->AttachToComponent(NavVolume->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
-			navMesh = NavVolume;
+				// Tell nav system about it
+				UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+				if (NavSys)
+				{
+					NavSys->OnNavigationBoundsUpdated(NavVolume);
+				}
+			}
 		}
 	}
 }
@@ -138,6 +135,8 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 	buildBasePlate();
 
+	buildNavMesh();
+
 	if (!seed)
 	{
 		seed = RandomGenerator().getRandom();
@@ -156,8 +155,6 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 	{
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
-
-	buildNavMesh();
 }
 
 void AGenerator::clearRooms()
