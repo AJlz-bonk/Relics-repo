@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "Kismet/GameplayStatics.h"
+
 void ARoom::buildWalls()
 {
 	buildWall(room.getWalls());
@@ -142,13 +144,16 @@ AActor* ARoom::spawnActors(UWorld* world)
 {
 	FVector spawnPos = GetActorLocation();
 	FVector spawnLocation(spawnPos.X + height / 2.f * 100.f, spawnPos.Y + width / 2.f * 100.f, 109.f);
+	FTransform spawnTransform = FTransform(spawnLocation);
 
 	// Spawn the actor.
-	AActor* spawnedEnemy = world->SpawnActorDeferred<AActor>(enemy, FTransform(spawnLocation), this,
+	AActor* spawnedEnemy = world->SpawnActorDeferred<AActor>(enemy, spawnTransform, this,
 	                                                         nullptr);
 	if (spawnedEnemy)
 	{
 		//UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedEnemy->GetName());
+
+		UGameplayStatics::FinishSpawningActor(spawnedEnemy, spawnTransform);
 
 		return spawnedEnemy;
 	}
@@ -159,10 +164,10 @@ AActor* ARoom::spawnActors(UWorld* world)
 
 void ARoom::clearEnemies()
 {
-	// for (auto entry : enemies)
-	// {
-	// 	entry->Destroy();
-	// }
+	for (auto entry : enemies)
+	{
+		entry->Destroy();
+	}
 	enemies.clear();
 
 	// if (blocks != nullptr)
