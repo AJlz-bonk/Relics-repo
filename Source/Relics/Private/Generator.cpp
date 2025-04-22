@@ -5,6 +5,8 @@
 #include "GeneratorImpl.h"
 #include "Room.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
+
 
 void AGenerator::buildBasePlate()
 {
@@ -30,9 +32,10 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), spawnTransform, this, nullptr);
 	if (spawnedRoom)
 	{
-		spawnedRoom->init(room, rg);
+		spawnedRoom->init(room, rg, enemy);
 		spawnedRoom->OnConstruction(spawnTransform);
-
+		
+		UGameplayStatics::FinishSpawningActor(spawnedRoom, spawnTransform);
 		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
 		return spawnedRoom;
 	}
@@ -63,6 +66,16 @@ AGenerator::AGenerator()
 	{
 		UE_LOG(LogTemp, Error, TEXT("Could not find the cube mesh"));
 	}
+
+	static ConstructorHelpers::FObjectFinder<UBlueprint> foe(TEXT("/Game/EnemyStuff/BP_EnemyAI"));
+	if (foe.Succeeded())
+	{
+		enemy = foe.Object->GeneratedClass;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find the enemy blueprint"));
+	}
 }
 
 AGenerator::~AGenerator()
@@ -80,7 +93,12 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 	buildBasePlate();
 
-	GeneratorImpl generator(size, room_min, room_max, gap, seed ? seed : RandomGenerator().getRandom());
+	if (!seed)
+	{
+		seed = RandomGenerator().getRandom();
+	}
+
+	GeneratorImpl generator(size, room_min, room_max, gap, seed);
 	generator.generate();
 
 	std::stringstream s;
@@ -96,11 +114,30 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 void AGenerator::clearRooms()
 {
-	for (auto entry : rooms)
+	TArray<AActor*> foundRoomActors;
+	
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARoom::StaticClass(), foundRoomActors);
+
+	for (auto actor : foundRoomActors)
 	{
-		entry->clearEnemies();
-		entry->Destroy();
+		ARoom* room = Cast<ARoom>(actor);
+		if (room)
+		{
+			room->clearEnemies();
+		}
+		actor->Destroy();
 	}
 	rooms.clear();
-	//blocks->ClearInstances();
+
+	TArray<AActor*> foundEnemyActors;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), enemy, foundEnemyActors);
+
+	for (auto enemyActor : foundEnemyActors)
+	{
+		if (enemyActor)
+		{
+			enemyActor->Destroy();
+		}
+	}
 }

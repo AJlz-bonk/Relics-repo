@@ -38,4 +38,7 @@ public:
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 0))
 	uint32 seed;
+
+	UPROPERTY(EditAnywhere)
+	class UClass* enemy;
 };

@@ -26,7 +26,7 @@ public:
 	ARoom();
 	~ARoom();
 
-	void init(const RoomImpl& roomRef, RandomGenerator& rgRef);
+	void init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyRef);
 	void buildWalls();
 	void buildWall(std::vector<std::pair<int, int>>& walls);
 	void buildVerticalWall(std::pair<int, int>& p1, std::pair<int, int>& p2);

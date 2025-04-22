@@ -178,7 +178,7 @@ void ARoom::clearEnemies()
 
 ARoom::ARoom()
 	: constructed(false), enemies(std::vector<AActor*>()),
-	  width(0), height(0)
+	  enemy(nullptr), width(0), height(0)
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -196,16 +196,6 @@ ARoom::ARoom()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Could not find the cube mesh"));
-	}
-
-	static ConstructorHelpers::FObjectFinder<UBlueprint> foe(TEXT("/Game/EnemyStuff/BP_EnemyAI"));
-	if (foe.Succeeded())
-	{
-		enemy = foe.Object->GeneratedClass;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find the enemy blueprint"));
 	}
 }
 
@@ -228,8 +218,9 @@ ARoom::~ARoom()
 	clearEnemies();
 }
 
-void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef)
+void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyRef)
 {
+	enemy = enemyRef;
 	room = roomRef;
 	rg = rgRef;
 	width = roomRef.getWidth();
