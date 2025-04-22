@@ -3,6 +3,8 @@
 
 #include "Room.h"
 #include "RoomImpl.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
+
 #include "Generator.generated.h"
 
 UCLASS()
@@ -15,14 +17,12 @@ class RELICS_API AGenerator : public AActor
 
 public:
 	void buildBasePlate();
+	void buildNavMesh();
 	ARoom* build(UWorld* world, RandomGenerator& rg, const RoomImpl& room);
 
 	AGenerator();
 	~AGenerator();
 	void OnConstruction(const FTransform& Transform);
-
-	UPROPERTY(EditAnywhere)
-	UInstancedStaticMeshComponent* blocks;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 16))
 	uint32 size;
@@ -38,7 +38,13 @@ public:
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 0))
 	uint32 seed;
+	
+	UPROPERTY(EditAnywhere)
+	UInstancedStaticMeshComponent* blocks;
 
 	UPROPERTY(EditAnywhere)
 	class UClass* enemy;
+
+	UPROPERTY(EditAnywhere)
+	class ANavMeshBoundsVolume* navMesh;
 };

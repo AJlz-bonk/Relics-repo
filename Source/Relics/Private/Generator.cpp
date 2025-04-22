@@ -3,9 +3,12 @@
 #include <sstream>
 
 #include "GeneratorImpl.h"
+#include "NavigationSystem.h"
 #include "Room.h"
+#include "Components/BoxComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 
 
 void AGenerator::buildBasePlate()
@@ -19,6 +22,49 @@ void AGenerator::buildBasePlate()
 
 	blocks->ClearInstances();
 	blocks->AddInstance(FTransform(transformMatrix));
+}
+
+void AGenerator::buildNavMesh()
+{
+	float SafeSize = FMath::Max(static_cast<uint32>(1), size); // ensure minimum value
+	FVector SpawnLocation(0.f, 0.f, 0.f);
+
+	// BoxExtent is half-size in UE terms
+	FVector BoxExtent(SafeSize * 100.f, SafeSize * 100.f, 100.f); // 200cm tall, adjust if needed
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		FActorSpawnParameters SpawnParams;
+		ANavMeshBoundsVolume* NavVolume = World->SpawnActor<ANavMeshBoundsVolume>(
+			ANavMeshBoundsVolume::StaticClass(),
+			SpawnLocation,
+			FRotator::ZeroRotator,
+			SpawnParams
+		);
+
+		if (NavVolume)
+		{
+			// Set actual bounds through BoxComponent
+			UBoxComponent* BoxComp = Cast<UBoxComponent>(NavVolume->GetRootComponent());
+			if (BoxComp)
+			{
+				BoxComp->SetBoxExtent(BoxExtent); // Size in cm, not scale
+				BoxComp->SetWorldLocation(SpawnLocation); // update position
+				BoxComp->UpdateBounds();
+			}
+
+			// No scale setting needed!
+			// Register with nav system
+			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+			if (NavSys)
+			{
+				NavSys->OnNavigationBoundsUpdated(NavVolume);
+			}
+
+			navMesh = NavVolume;
+		}
+	}
 }
 
 ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& room)
@@ -36,7 +82,6 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 		spawnedRoom->OnConstruction(spawnTransform);
 		
 		UGameplayStatics::FinishSpawningActor(spawnedRoom, spawnTransform);
-		UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedRoom->GetName());
 		return spawnedRoom;
 	}
 	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
@@ -45,7 +90,7 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 }
 
 AGenerator::AGenerator()
-	: size(32), room_min(5), room_max(5), gap(3), seed(0)
+	: size(32), room_min(5), room_max(5), gap(3), seed(0), navMesh(nullptr)
 
 {
 	UE_LOG(LogTemp, Log, TEXT("Constructor called"));
@@ -101,15 +146,18 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 	GeneratorImpl generator(size, room_min, room_max, gap, seed);
 	generator.generate();
 
+	/*
 	std::stringstream s;
 	s << generator << std::endl;
 	UE_LOG(LogTemp, Warning, TEXT("%hs"), s.str().c_str());
+	*/
 	
 	for (auto room : generator.getRooms())
 	{
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
-	UE_LOG(LogTemp, Log, TEXT("OnConstruction finished"));
+
+	buildNavMesh();
 }
 
 void AGenerator::clearRooms()
@@ -139,5 +187,11 @@ void AGenerator::clearRooms()
 		{
 			enemyActor->Destroy();
 		}
+	}
+
+	if (navMesh)
+	{
+		navMesh->Destroy();
+		navMesh = nullptr;
 	}
 }

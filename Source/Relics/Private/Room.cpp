@@ -151,8 +151,6 @@ AActor* ARoom::spawnActors(UWorld* world)
 	                                                         nullptr);
 	if (spawnedEnemy)
 	{
-		//UE_LOG(LogTemp, Log, TEXT("Spawned actor %s successfully!"), *spawnedEnemy->GetName());
-
 		UGameplayStatics::FinishSpawningActor(spawnedEnemy, spawnTransform);
 
 		return spawnedEnemy;
@@ -169,11 +167,6 @@ void ARoom::clearEnemies()
 		entry->Destroy();
 	}
 	enemies.clear();
-
-	// if (blocks != nullptr)
-	// {
-	// 	blocks->ClearInstances();
-	// }
 }
 
 ARoom::ARoom()
@@ -202,19 +195,6 @@ ARoom::ARoom()
 
 ARoom::~ARoom()
 {
-	UE_LOG(LogTemp, Warning, TEXT("ARoom destructor called"));
-
-	/*
-	delete blocks;
-
-	for (auto entry : enemies)
-	{
-		entry->Destroy();
-		//UE_LOG(LogRelics, Log, TEXT("Enemy destroyed!!!"));
-	}
-	enemies.clear();
-	*/
-
 	clearEnemies();
 }
 
@@ -242,9 +222,6 @@ void ARoom::OnConstruction(const FTransform& Transform)
 	{
 		return;
 	}
-
-	//UE_LOG(LogTemp, Log, TEXT("OnConstruction called: w=%d, h=%d, doors:%d, enemyCount:%d"), width, height,
-	//       static_cast<int>(doors.size()), static_cast<int>(enemies.size()));
 
 	UWorld* world = GetWorld();
 
