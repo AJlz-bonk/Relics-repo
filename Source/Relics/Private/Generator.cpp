@@ -49,8 +49,7 @@ void AGenerator::buildNavMesh()
 				BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 				BoxComp->SetWorldLocation(NavVolume->GetActorLocation());
 
-				// Attach to actor and make root
-				NavVolume->SetRootComponent(BoxComp);
+				// Attach to actor
 				BoxComp->AttachToComponent(NavVolume->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
 				// Tell nav system about it
