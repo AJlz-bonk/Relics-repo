@@ -46,5 +46,11 @@ public:
 	class UClass* enemy;
 
 	UPROPERTY(EditAnywhere)
+	class UClass* chest;
+
+	UPROPERTY(EditAnywhere)
+	class UClass* exit;
+
+	UPROPERTY(EditAnywhere)
 	class ANavMeshBoundsVolume* navMesh;
 };

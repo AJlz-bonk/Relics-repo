@@ -126,9 +126,6 @@ void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 
 void ARoom::build(UWorld* world)
 {
-	//builds the floor
-	//buildWallSegment(1, 1, 0, height - 2, width - 2, 0.2);
-
 	//builds the ceiling
 	//buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
 
@@ -136,17 +133,22 @@ void ARoom::build(UWorld* world)
 	//buildOverheads();
 	buildWalls();
 
-	enemies.push_back(spawnActors(world));
+	FVector spawnPos = GetActorLocation();
+	
+	enemies.push_back(spawnActor(world, enemy, &spawnPos));
+	enemies.push_back(spawnActor(world, chest, &spawnPos));
+	enemies.push_back(spawnActor(world, exit, &spawnPos));
+
 }
 
-AActor* ARoom::spawnActors(UWorld* world)
+AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 {
-	FVector spawnPos = GetActorLocation();
-	FVector spawnLocation(spawnPos.X + height / 2.f * 100.f, spawnPos.Y + width / 2.f * 100.f, 109.f);
+	TArray<AActor*> tempEnemies;
+	FVector spawnLocation(location->X + height / 2.f * 100.f, location->Y + width / 2.f * 100.f, 109.f);
 	FTransform spawnTransform = FTransform(spawnLocation);
 
 	// Spawn the actor.
-	AActor* spawnedEnemy = world->SpawnActorDeferred<AActor>(enemy, spawnTransform, this,
+	AActor* spawnedEnemy = world->SpawnActorDeferred<AActor>(actorType, spawnTransform, this,
 	                                                         nullptr);
 	if (spawnedEnemy)
 	{
@@ -154,11 +156,10 @@ AActor* ARoom::spawnActors(UWorld* world)
 
 		return spawnedEnemy;
 	}
+	
 	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
-
 	return nullptr;
 }
-
 void ARoom::clearEnemies()
 {
 	for (auto entry : enemies)
@@ -170,7 +171,7 @@ void ARoom::clearEnemies()
 
 ARoom::ARoom()
 	: constructed(false), enemies(std::vector<AActor*>()),
-	  enemy(nullptr), width(0), height(0)
+	  enemy(nullptr), chest(nullptr), exit(nullptr), width(0), height(0)
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -197,9 +198,11 @@ ARoom::~ARoom()
 	clearEnemies();
 }
 
-void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyRef)
+void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyRef, UClass* chestRef, UClass* exitRef)
 {
 	enemy = enemyRef;
+	chest = chestRef;
+	exit = exitRef;
 	room = roomRef;
 	rg = rgRef;
 	width = roomRef.getWidth();

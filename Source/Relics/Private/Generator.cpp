@@ -74,7 +74,7 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), spawnTransform, this, nullptr);
 	if (spawnedRoom)
 	{
-		spawnedRoom->init(room, rg, enemy);
+		spawnedRoom->init(room, rg, enemy, chest, exit);
 		spawnedRoom->OnConstruction(spawnTransform);
 		
 		UGameplayStatics::FinishSpawningActor(spawnedRoom, spawnTransform);
@@ -115,7 +115,27 @@ AGenerator::AGenerator()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find the enemy blueprint"));
+		UE_LOG(LogTemp, Error, TEXT("Could not find enemy blueprint"));
+	}
+
+	static ConstructorHelpers::FObjectFinder<UBlueprint> box(TEXT("/Game/Interactables/BP_Chest"));
+	if (box.Succeeded())
+	{
+		chest = box.Object->GeneratedClass;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find chest blueprint"));
+	}
+
+	static ConstructorHelpers::FObjectFinder<UBlueprint> door(TEXT("/Game/Interactables/BP_GateBack"));
+	if (door.Succeeded())
+	{
+		exit = door.Object->GeneratedClass;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find exit blueprint"));
 	}
 }
 
@@ -153,7 +173,7 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 	for (auto room : generator.getRooms())
 	{
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
-	}
+	} 
 }
 
 void AGenerator::clearRooms()
