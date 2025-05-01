@@ -4,6 +4,8 @@
 #include "Relics/Utils/Utils.h"
 
 #include <algorithm>
+#include <array>
+#include <unordered_set>
 
 #include "Kismet/GameplayStatics.h"
 
@@ -124,27 +126,83 @@ void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 	blocks->AddInstance(FTransform(transformMatrix));
 }
 
+struct PairHash {
+	std::size_t operator()(const std::pair<int, int>& p) const {
+		return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
+	}
+};
+
+FVector ARoom::getRandomValidPosition()
+{
+	{
+		// Build blocked set
+		std::unordered_set<std::pair<int, int>, PairHash> blocked;
+
+		for (const auto& wall : room.getWalls()) {
+			blocked.insert(wall);
+		}
+		for (const auto& interior : room.getInteriorWalls()) {
+			blocked.insert(interior);
+		}
+
+		// Try random attempts first (faster if map is mostly open)
+		const int maxAttempts = 1000;
+		for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+			int x = rg.getRandom(0, width);
+			int y = rg.getRandom(0, height);
+			std::pair<int, int> candidate = {x, y};
+			if (blocked.find(candidate) == blocked.end()) {
+				return FVector(x * 100.f, y * 100.f, 0.f);
+			}
+		}
+
+		// Fallback: build list of valid positions
+		std::vector<std::pair<int, int>> validPoints;
+		for (uint32 x = 0; x <= width; ++x) {
+			for (uint32 y = 0; y <= height; ++y) {
+				std::pair<int, int> p = {x, y};
+				if (blocked.find(p) == blocked.end()) {
+					validPoints.push_back(p);
+				}
+			}
+		}
+
+		auto chosen = validPoints[rg.getRandom(0, static_cast<int>(validPoints.size()) - 1)];
+		return FVector(chosen.first * 100.f, chosen.second * 100.f, 0.f);
+	}
+}
+
 void ARoom::build(UWorld* world)
 {
 	//builds the ceiling
 	//buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
 
 	//builds the walls
-	//buildOverheads();
+	buildOverheads();
 	buildWalls();
 
 	FVector spawnPos = GetActorLocation();
-	
-	enemies.push_back(spawnActor(world, enemy, &spawnPos));
-	enemies.push_back(spawnActor(world, chest, &spawnPos));
-	enemies.push_back(spawnActor(world, exit, &spawnPos));
 
+	std::vector classes = {enemy, chest};
+
+	if (rg.getRandom(0,10) > 8)
+	{
+		classes.push_back(exit);
+	}
+	
+	for (auto classToSpawn : classes)
+	{
+		FVector offset = getRandomValidPosition();
+		FVector result = FVector(spawnPos.X + offset.X, spawnPos.Y + offset.Y, 0.f);
+	
+		enemies.push_back(spawnActor(world, classToSpawn, &result));
+	}
 }
 
 AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 {
 	TArray<AActor*> tempEnemies;
-	FVector spawnLocation(location->X + height / 2.f * 100.f, location->Y + width / 2.f * 100.f, 109.f);
+	FVector spawnLocation(location->X, location->Y, 109.f);
 	FTransform spawnTransform = FTransform(spawnLocation);
 
 	// Spawn the actor.
@@ -160,7 +218,7 @@ AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 	return nullptr;
 }
-void ARoom::clearEnemies()
+void ARoom::clearActors()
 {
 	for (auto entry : enemies)
 	{
@@ -195,7 +253,7 @@ ARoom::ARoom()
 
 ARoom::~ARoom()
 {
-	clearEnemies();
+	clearActors();
 }
 
 void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyRef, UClass* chestRef, UClass* exitRef)
@@ -230,4 +288,10 @@ void ARoom::OnConstruction(const FTransform& Transform)
 	blocks->ClearInstances();
 
 	build(world);
+}
+
+void ARoom::BeginDestroy()
+{
+	clearActors();
+	Super::BeginDestroy();
 }

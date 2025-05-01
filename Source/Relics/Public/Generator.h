@@ -7,13 +7,13 @@
 
 #include "Generator.generated.h"
 
-UCLASS()
+UCLASS(Blueprintable)
 class RELICS_API AGenerator : public AActor
 {
 	GENERATED_BODY()
 	std::vector<ARoom*> rooms;
 
-	void clearRooms();
+	void clearDungeon();
 
 public:
 	void buildBasePlate();
@@ -24,20 +24,22 @@ public:
 	~AGenerator();
 	void OnConstruction(const FTransform& Transform);
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 16))
-	uint32 size;
+	virtual void BeginDestroy() override;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 5))
-	uint32 room_min;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator stuff", meta = (ExposeOnSpawn = "true", ClampMin = 16))
+	int32 size;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 5))
-	uint32 room_max;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator stuff", meta = (ExposeOnSpawn = "true", ClampMin = 5))
+	int32 room_min;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 3))
-	uint32 gap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator stuff", meta = (ExposeOnSpawn = "true", ClampMin = 5))
+	int32 room_max;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = 0))
-	uint32 seed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator stuff", meta = (ExposeOnSpawn = "true", ClampMin = 3))
+	int32 gap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator stuff", meta = (ExposeOnSpawn = "true", ClampMin = 0))
+	int32 seed;
 	
 	UPROPERTY(EditAnywhere)
 	UInstancedStaticMeshComponent* blocks;

@@ -1,7 +1,5 @@
 ﻿#include "Generator.h"
 
-#include <sstream>
-
 #include "GeneratorImpl.h"
 #include "NavigationSystem.h"
 #include "Room.h"
@@ -31,32 +29,32 @@ void AGenerator::buildNavMesh()
 	{
 		FVector spawnLoc = FVector(size / 2.f * 100.f, size / 2.f * 100.f, 0.f);
 		FActorSpawnParameters SpawnParams;
-		ANavMeshBoundsVolume* NavVolume = World->SpawnActor<ANavMeshBoundsVolume>(
+		navMesh = World->SpawnActor<ANavMeshBoundsVolume>(
 			ANavMeshBoundsVolume::StaticClass(),
 			spawnLoc,
 			FRotator::ZeroRotator,
 			SpawnParams
 		);
 
-		if (NavVolume)
+		if (navMesh)
 		{
 			// Create the BoxComponent
-			UBoxComponent* BoxComp = NewObject<UBoxComponent>(NavVolume);
+			UBoxComponent* BoxComp = NewObject<UBoxComponent>(navMesh);
 			if (BoxComp)
 			{
 				BoxComp->RegisterComponent(); // VERY IMPORTANT
 				BoxComp->SetBoxExtent(FVector(size * 100.f / 2.f, size * 100.f / 2.f, 1000.f)); // half-extents = 1000x1000x20 total
 				BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-				BoxComp->SetWorldLocation(NavVolume->GetActorLocation());
+				BoxComp->SetWorldLocation(navMesh->GetActorLocation());
 
 				// Attach to actor
-				BoxComp->AttachToComponent(NavVolume->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+				BoxComp->AttachToComponent(navMesh->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
 
 				// Tell nav system about it
 				UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 				if (NavSys)
 				{
-					NavSys->OnNavigationBoundsUpdated(NavVolume);
+					NavSys->OnNavigationBoundsUpdated(navMesh);
 				}
 			}
 		}
@@ -141,7 +139,7 @@ AGenerator::AGenerator()
 
 AGenerator::~AGenerator()
 {
-	clearRooms();
+	clearDungeon();
 }
 
 void AGenerator::OnConstruction(const FTransform& Transform)
@@ -150,12 +148,10 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 	UWorld* world = GetWorld();
 
-	clearRooms();
+	clearDungeon();
 
 	buildBasePlate();
-
-	buildNavMesh();
-
+	
 	if (!seed)
 	{
 		seed = RandomGenerator().getRandom();
@@ -163,21 +159,26 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 	GeneratorImpl generator(size, room_min, room_max, gap, seed);
 	generator.generate();
-
-	/*
-	std::stringstream s;
-	s << generator << std::endl;
-	UE_LOG(LogTemp, Warning, TEXT("%hs"), s.str().c_str());
-	*/
 	
 	for (auto room : generator.getRooms())
 	{
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
-	} 
+	}
+	buildNavMesh();
 }
 
-void AGenerator::clearRooms()
+void AGenerator::BeginDestroy()
 {
+	UE_LOG(LogTemp, Error, TEXT("begin destroy called"));
+
+	clearDungeon();
+	Super::BeginDestroy();
+}
+
+void AGenerator::clearDungeon()
+{
+	UE_LOG(LogTemp, Error, TEXT("clearDungeon called"));
+
 	TArray<AActor*> foundRoomActors;
 	
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARoom::StaticClass(), foundRoomActors);
@@ -187,7 +188,7 @@ void AGenerator::clearRooms()
 		ARoom* room = Cast<ARoom>(actor);
 		if (room)
 		{
-			room->clearEnemies();
+			room->clearActors();
 		}
 		actor->Destroy();
 	}
@@ -207,7 +208,12 @@ void AGenerator::clearRooms()
 
 	if (navMesh)
 	{
+		UE_LOG(LogTemp, Error, TEXT("Attempted to delete navMesh actor"));
+
 		navMesh->Destroy();
 		navMesh = nullptr;
+	} else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not find navMesh actor"));
 	}
 }

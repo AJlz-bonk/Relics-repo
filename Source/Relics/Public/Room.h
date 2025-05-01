@@ -36,6 +36,8 @@ public:
 	void buildOverheads();
 	void buildWallSegment(float r, float c, float alty, float rScale,
 							 float cScale, float zScale);
+	FVector getRandomValidPosition();
+	
 
 	UPROPERTY(EditAnywhere)
 	class UInstancedStaticMeshComponent* blocks;
@@ -59,6 +61,8 @@ public:
 	uint32 alt;
 	
 	virtual void OnConstruction(const FTransform& Transform) override;
+
+	virtual void BeginDestroy() override;
     
-	void clearEnemies();
+	void clearActors();
 };
