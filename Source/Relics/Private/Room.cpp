@@ -175,7 +175,7 @@ FVector ARoom::getRandomValidPosition()
 void ARoom::build(UWorld* world)
 {
 	//builds the ceiling
-	//buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
+	buildWallSegment(0, 0, alt - 0.2, height, width, 0.2);
 
 	//builds the walls
 	buildOverheads();
