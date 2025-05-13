@@ -218,11 +218,39 @@ AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 	return nullptr;
 }
+/*
+Unhandled Exception: EXCEPTION_ACCESS_VIOLATION reading address 0x000001580000000a
+
+UnrealEditor_Engine
+UnrealEditor_Engine
+UnrealEditor_Relics!ARoom::clearActors() [C:\Users\901558\RiderProjects\Relics-repo\Source\Relics\Private\Room.cpp:226]
+UnrealEditor_Relics!ARoom::BeginDestroy() [C:\Users\901558\RiderProjects\Relics-repo\Source\Relics\Private\Room.cpp:296]
+UnrealEditor_CoreUObject
+UnrealEditor_CoreUObject
+UnrealEditor_CoreUObject
+UnrealEditor_CoreUObject
+UnrealEditor_CoreUObject
+UnrealEditor_UnrealEd
+UnrealEditor_UnrealEd
+UnrealEditor_UnrealEd
+UnrealEditor
+UnrealEditor
+UnrealEditor
+UnrealEditor
+UnrealEditor
+UnrealEditor
+kernel32
+ntdll
+ */
 void ARoom::clearActors()
 {
 	for (auto entry : enemies)
 	{
-		entry->Destroy();
+		//tried to fix with an if (entry)
+		if (entry)
+		{
+			entry->Destroy();
+		}
 	}
 	enemies.clear();
 }

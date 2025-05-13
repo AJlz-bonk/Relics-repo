@@ -142,10 +142,8 @@ AGenerator::~AGenerator()
 	clearDungeon();
 }
 
-void AGenerator::OnConstruction(const FTransform& Transform)
+void AGenerator::buildDungeon()
 {
-	Super::OnConstruction(Transform);
-
 	UWorld* world = GetWorld();
 
 	clearDungeon();
@@ -165,6 +163,11 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
 	buildNavMesh();
+}
+
+void AGenerator::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
 }
 
 void AGenerator::BeginDestroy()

@@ -22,9 +22,13 @@ public:
 
 	AGenerator();
 	~AGenerator();
+	
 	void OnConstruction(const FTransform& Transform);
 
 	virtual void BeginDestroy() override;
+		
+	UFUNCTION(BlueprintCallable, Category = "Generator stuff")
+	void buildDungeon();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generator stuff", meta = (ExposeOnSpawn = "true", ClampMin = 16))
 	int32 size;
