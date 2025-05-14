@@ -73,7 +73,7 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 	if (spawnedRoom)
 	{
 		spawnedRoom->init(room, rg, enemy, chest, exit);
-		spawnedRoom->OnConstruction(spawnTransform);
+		//spawnedRoom->OnConstruction(spawnTransform);
 		
 		UGameplayStatics::FinishSpawningActor(spawnedRoom, spawnTransform);
 		return spawnedRoom;

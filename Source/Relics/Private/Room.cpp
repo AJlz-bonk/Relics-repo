@@ -244,15 +244,17 @@ ntdll
  */
 void ARoom::clearActors()
 {
+	/*
 	for (auto entry : enemies)
 	{
 		//tried to fix with an if (entry)
-		if (entry)
+		if (IsValid(entry))
 		{
 			entry->Destroy();
 		}
-	}
+	} 
 	enemies.clear();
+	*/
 }
 
 ARoom::ARoom()
