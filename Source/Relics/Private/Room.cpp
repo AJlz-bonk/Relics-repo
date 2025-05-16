@@ -116,6 +116,11 @@ void ARoom::buildOverheads()
 void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
                              float cScale, float zScale)
 {
+	if (rScale == 0 || cScale == 0 || zScale == 0)
+	{
+		return;
+	}
+	
 	FMatrix transformMatrix = FMatrix(
 		FPlane(rScale * 1.0f, 0.0f, 0.0f, 0.0f),
 		FPlane(0.0f, cScale * 1.0f, 0.0f, 0.0f),
