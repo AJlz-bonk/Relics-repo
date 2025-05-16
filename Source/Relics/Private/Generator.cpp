@@ -27,13 +27,16 @@ void AGenerator::buildNavMesh()
 	UWorld* World = GetWorld();
 	if (World)
 	{
+		//spawns the navmesh in the center of the dungeon
 		FVector spawnLoc = FVector(size / 2.f * 100.f, size / 2.f * 100.f, 0.f);
-		FActorSpawnParameters SpawnParams;
+		FActorSpawnParameters spawnParams;
+		spawnParams.OverrideLevel = GetLevel();
+		
 		navMesh = World->SpawnActor<ANavMeshBoundsVolume>(
 			ANavMeshBoundsVolume::StaticClass(),
 			spawnLoc,
 			FRotator::ZeroRotator,
-			SpawnParams
+			spawnParams
 		);
 
 		if (navMesh)
@@ -42,9 +45,9 @@ void AGenerator::buildNavMesh()
 			UBoxComponent* BoxComp = NewObject<UBoxComponent>(navMesh);
 			if (BoxComp)
 			{
-				BoxComp->RegisterComponent(); // VERY IMPORTANT
+				BoxComp->RegisterComponent();
+				//accepts a radius, not a diameter, so divide all values by 2
 				BoxComp->SetBoxExtent(FVector(size * 100.f / 2.f, size * 100.f / 2.f, 1000.f));
-				// half-extents = 1000x1000x20 total
 				BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 				BoxComp->SetWorldLocation(navMesh->GetActorLocation());
 
@@ -77,7 +80,6 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 		UE_LOG(LogTemp, Error, TEXT("AGenerator does not have a valid level"));
 		return nullptr;
 	}
-	UE_LOG(LogTemp, Error, TEXT("AGenerator level: %s"), *OwningLevel->GetOuter()->GetName());
 
 	spawnParams.OverrideLevel = OwningLevel;
 	spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
