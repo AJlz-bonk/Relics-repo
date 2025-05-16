@@ -126,7 +126,7 @@ AGenerator::AGenerator()
 		UE_LOG(LogTemp, Error, TEXT("Could not find chest blueprint"));
 	}
 
-	static ConstructorHelpers::FObjectFinder<UBlueprint> door(TEXT("/Game/Interactables/BP_GateBack"));
+	static ConstructorHelpers::FObjectFinder<UBlueprint> door(TEXT("/Game/Interactables/BP_Gate"));
 	if (door.Succeeded())
 	{
 		exit = door.Object->GeneratedClass;
@@ -144,7 +144,10 @@ AGenerator::~AGenerator()
 
 void AGenerator::buildDungeon()
 {
+	
+	UE_LOG(LogTemp, Error, TEXT("Pre-Gen-GetWorld"));
 	UWorld* world = GetWorld();
+	UE_LOG(LogTemp, Error, TEXT("Post-Gen-GetWorld"));
 
 	clearDungeon();
 
@@ -183,8 +186,10 @@ void AGenerator::clearDungeon()
 	UE_LOG(LogTemp, Error, TEXT("clearDungeon called"));
 
 	TArray<AActor*> foundRoomActors;
-	
+
+	UE_LOG(LogTemp, Error, TEXT("Pre-Gen-ClearDungeon-GetWorld"));
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARoom::StaticClass(), foundRoomActors);
+	UE_LOG(LogTemp, Error, TEXT("Post-Gen-ClearDungeon-GetWorld"));
 
 	for (auto actor : foundRoomActors)
 	{
@@ -198,8 +203,10 @@ void AGenerator::clearDungeon()
 	rooms.clear();
 
 	TArray<AActor*> foundEnemyActors;
-
+	
+	UE_LOG(LogTemp, Error, TEXT("Post-Gen-ClearDungeon-2-GetWorld"));
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), enemy, foundEnemyActors);
+	UE_LOG(LogTemp, Error, TEXT("Post-Gen-ClearDungeon-2-GetWorld"));
 
 	for (auto enemyActor : foundEnemyActors)
 	{
