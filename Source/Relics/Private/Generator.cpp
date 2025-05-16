@@ -43,7 +43,8 @@ void AGenerator::buildNavMesh()
 			if (BoxComp)
 			{
 				BoxComp->RegisterComponent(); // VERY IMPORTANT
-				BoxComp->SetBoxExtent(FVector(size * 100.f / 2.f, size * 100.f / 2.f, 1000.f)); // half-extents = 1000x1000x20 total
+				BoxComp->SetBoxExtent(FVector(size * 100.f / 2.f, size * 100.f / 2.f, 1000.f));
+				// half-extents = 1000x1000x20 total
 				BoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 				BoxComp->SetWorldLocation(navMesh->GetActorLocation());
 
@@ -67,19 +68,33 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 	unsigned int col = room.getCol();
 	FVector spawnLocation(row * 100.f, col * 100.f, 0.f);
 	FTransform spawnTransform(spawnLocation);
+	FActorSpawnParameters spawnParams;
+
+	//sets the correct level
+	ULevel* OwningLevel = GetLevel();
+	if (!OwningLevel)
+	{
+		UE_LOG(LogTemp, Error, TEXT("AGenerator does not have a valid level"));
+		return nullptr;
+	}
+	UE_LOG(LogTemp, Error, TEXT("AGenerator level: %s"), *OwningLevel->GetOuter()->GetName());
+
+	spawnParams.OverrideLevel = OwningLevel;
+	spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	// Spawn the actor.
-	ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), spawnTransform, this, nullptr);
+	//ARoom* spawnedRoom = world->SpawnActorDeferred<ARoom>(ARoom::StaticClass(), spawnTransform, this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	ARoom* spawnedRoom = world->SpawnActor<ARoom>(ARoom::StaticClass(), spawnTransform, spawnParams);
+
 	if (spawnedRoom)
 	{
 		spawnedRoom->init(room, rg, enemy, chest, exit);
-		//spawnedRoom->OnConstruction(spawnTransform);
-		
-		UGameplayStatics::FinishSpawningActor(spawnedRoom, spawnTransform);
+
+		//UGameplayStatics::FinishSpawningActor(spawnedRoom, spawnTransform);											No longer needed because SpawnActorDeferred is no longer being used
 		return spawnedRoom;
 	}
-	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 
+	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 	return nullptr;
 }
 
@@ -144,15 +159,14 @@ AGenerator::~AGenerator()
 
 void AGenerator::buildDungeon()
 {
-	
-	UE_LOG(LogTemp, Error, TEXT("Pre-Gen-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Pre-Gen-GetWorld"));
 	UWorld* world = GetWorld();
-	UE_LOG(LogTemp, Error, TEXT("Post-Gen-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Post-Gen-GetWorld"));
 
 	clearDungeon();
 
 	buildBasePlate();
-	
+
 	if (!seed)
 	{
 		seed = RandomGenerator().getRandom();
@@ -160,7 +174,7 @@ void AGenerator::buildDungeon()
 
 	GeneratorImpl generator(size, room_min, room_max, gap, seed);
 	generator.generate();
-	
+
 	for (auto room : generator.getRooms())
 	{
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
@@ -175,7 +189,7 @@ void AGenerator::OnConstruction(const FTransform& Transform)
 
 void AGenerator::BeginDestroy()
 {
-	UE_LOG(LogTemp, Error, TEXT("begin destroy called"));
+	UE_LOG(LogTemp, Warning, TEXT("begin destroy called"));
 
 	clearDungeon();
 	Super::BeginDestroy();
@@ -183,13 +197,13 @@ void AGenerator::BeginDestroy()
 
 void AGenerator::clearDungeon()
 {
-	UE_LOG(LogTemp, Error, TEXT("clearDungeon called"));
+	UE_LOG(LogTemp, Warning, TEXT("clearDungeon called"));
 
 	TArray<AActor*> foundRoomActors;
 
-	UE_LOG(LogTemp, Error, TEXT("Pre-Gen-ClearDungeon-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Pre-Gen-ClearDungeon-GetWorld"));
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARoom::StaticClass(), foundRoomActors);
-	UE_LOG(LogTemp, Error, TEXT("Post-Gen-ClearDungeon-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Post-Gen-ClearDungeon-GetWorld"));
 
 	for (auto actor : foundRoomActors)
 	{
@@ -203,10 +217,10 @@ void AGenerator::clearDungeon()
 	rooms.clear();
 
 	TArray<AActor*> foundEnemyActors;
-	
-	UE_LOG(LogTemp, Error, TEXT("Post-Gen-ClearDungeon-2-GetWorld"));
+
+	UE_LOG(LogTemp, Warning, TEXT("Post-Gen-ClearDungeon-2-GetWorld"));
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), enemy, foundEnemyActors);
-	UE_LOG(LogTemp, Error, TEXT("Post-Gen-ClearDungeon-2-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Post-Gen-ClearDungeon-2-GetWorld"));
 
 	for (auto enemyActor : foundEnemyActors)
 	{
@@ -218,12 +232,13 @@ void AGenerator::clearDungeon()
 
 	if (navMesh)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Attempted to delete navMesh actor"));
+		UE_LOG(LogTemp, Warning, TEXT("Attempted to delete navMesh actor"));
 
 		navMesh->Destroy();
 		navMesh = nullptr;
-	} else
+	}
+	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Could not find navMesh actor"));
+		UE_LOG(LogTemp, Warning, TEXT("Could not find navMesh actor"));
 	}
 }
