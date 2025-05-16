@@ -60,8 +60,6 @@ public:
 	UPROPERTY(EditAnywhere, meta = (ClampMin = 1))
 	uint32 alt;
 	
-	virtual void OnConstruction(const FTransform& Transform) override;
-
 	virtual void BeginDestroy() override;
     
 	void clearActors();

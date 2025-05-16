@@ -278,26 +278,16 @@ void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyR
 	width = roomRef.getWidth();
 	height = roomRef.getHeight();
 	alt = rgRef.getRandom(4, 7);
-}
-
-void ARoom::OnConstruction(const FTransform& Transform)
-{
-	Super::OnConstruction(Transform);
-
-	if (constructed)
-	{
-		return;
-	}
-	constructed = true;
-
+	
+	//moved from OnConstruction
 	if (room.getDoors().size() == 0)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Error, TEXT("Pre-Room-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Pre-Room-GetWorld"));
 	UWorld* world = GetWorld();
-	UE_LOG(LogTemp, Error, TEXT("Post-Room-GetWorld"));
+	UE_LOG(LogTemp, Warning, TEXT("Post-Room-GetWorld"));
 
 	blocks->ClearInstances();
 
