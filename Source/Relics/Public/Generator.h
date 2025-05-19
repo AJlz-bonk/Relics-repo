@@ -14,6 +14,7 @@ class RELICS_API AGenerator : public AActor
 	std::vector<ARoom*> rooms;
 
 	void clearDungeon();
+	void delayedBuildNavigation();
 
 public:
 	void buildBasePlate();

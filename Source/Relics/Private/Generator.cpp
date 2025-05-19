@@ -165,6 +165,16 @@ ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& roo
 	return nullptr;
 }
 
+
+void AGenerator::delayedBuildNavigation()
+{
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	if (NavSys)
+	{
+		NavSys->Build();
+	}
+}
+
 AGenerator::AGenerator()
 	: size(32), room_min(5), room_max(5), gap(3), seed(0), navMesh(nullptr)
 
@@ -247,6 +257,8 @@ void AGenerator::buildDungeon()
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
 	//buildNavMesh();
+	FTimerHandle TimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &AGenerator::delayedBuildNavigation, 1.f, false);  
 }
 
 void AGenerator::BeginDestroy()
