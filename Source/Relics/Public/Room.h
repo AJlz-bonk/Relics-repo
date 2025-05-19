@@ -1,12 +1,20 @@
 #pragma once
+#include <unordered_set>
+#include <algorithm>
 #include <vector>
 
-#include "TwoDArray.h"
 #include "CoreMinimal.h"
 #include "RoomImpl.h"
 #include "GameFramework/Actor.h"
 #include "Relics/Utils/Utils.h"
 #include "Room.generated.h"
+
+
+struct PairHash {
+	std::size_t operator()(const std::pair<int, int>& p) const {
+		return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
+	}
+};
 
 UCLASS()
 class RELICS_API ARoom : public AActor
@@ -20,6 +28,7 @@ public:
 	
 	RoomImpl room;
 	RandomGenerator rg;
+	std::unordered_set<std::pair<int, int>, PairHash> blocked;
 
 	void build(UWorld* world);
 	AActor* spawnActor(UWorld* world, UClass* actorType, FVector* location);

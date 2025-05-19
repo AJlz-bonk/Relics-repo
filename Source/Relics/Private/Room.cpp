@@ -1,16 +1,15 @@
 #include "Room.h"
-#include "../Relics.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Relics/Utils/Utils.h"
 
 #include <algorithm>
-#include <array>
 #include <unordered_set>
 
 #include "Kismet/GameplayStatics.h"
 
 void ARoom::buildWalls()
 {
+	blocked.clear();
 	buildWall(room.getWalls());
 	buildWall(room.getInteriorWalls());
 }
@@ -49,6 +48,7 @@ void ARoom::buildVerticalWall(std::pair<int, int>& p1, std::pair<int, int>& p2)
 		unless(room.getDoors().contains({r, p1.second}))
 		{
 			rScale++;
+			blocked.insert(std::make_pair(r, p1.second));
 		}
 		//if there is a door then build a segment from the starting position with the pos and scale
 		else
@@ -63,6 +63,12 @@ void ARoom::buildVerticalWall(std::pair<int, int>& p1, std::pair<int, int>& p2)
 	//builds the final segment
 	//if there were no doors, builds the whole wall
 	buildWallSegment(rStart, p1.second, 0, rScale, 1, /*door height*/3);
+
+	//blocks off the entire final segment
+	for (int r = rStart; r < rScale; r++)
+	{
+		blocked.insert(std::make_pair(r, p1.second));
+	}
 }
 
 void ARoom::buildHorizontalWall(std::pair<int, int>& p1, std::pair<int, int>& p2)
@@ -78,6 +84,7 @@ void ARoom::buildHorizontalWall(std::pair<int, int>& p1, std::pair<int, int>& p2
 		unless(room.getDoors().contains({p1.first, c}))
 		{
 			cScale++;
+			blocked.insert(std::make_pair(p1.first, c));
 		}
 		//if there is a door then build a segment from the starting position with the pos and scale
 		else
@@ -93,6 +100,12 @@ void ARoom::buildHorizontalWall(std::pair<int, int>& p1, std::pair<int, int>& p2
 	if (cScale > 0)
 	{
 		buildWallSegment(p1.first, cStart, 0, 1, cScale, /*door height*/3);
+	}
+
+	//blocks off the entire final segment
+	for (int c = cStart; c < cScale; c++)
+	{
+		blocked.insert(std::make_pair(p1.first, c));
 	}
 }
 
@@ -120,7 +133,7 @@ void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 	{
 		return;
 	}
-	
+
 	FMatrix transformMatrix = FMatrix(
 		FPlane(rScale * 1.0f, 0.0f, 0.0f, 0.0f),
 		FPlane(0.0f, cScale * 1.0f, 0.0f, 0.0f),
@@ -131,50 +144,37 @@ void ARoom::buildWallSegment(float r, float c, float alty, float rScale,
 	blocks->AddInstance(FTransform(transformMatrix));
 }
 
-struct PairHash {
-	std::size_t operator()(const std::pair<int, int>& p) const {
-		return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
-	}
-};
-
 FVector ARoom::getRandomValidPosition()
 {
+	// Try random attempts first (faster if map is mostly open)
+	const int maxAttempts = 1000;
+	for (int attempt = 0; attempt < maxAttempts; ++attempt)
 	{
-		// Build blocked set
-		std::unordered_set<std::pair<int, int>, PairHash> blocked;
-
-		for (const auto& wall : room.getWalls()) {
-			blocked.insert(wall);
+		int x = rg.getRandom(0, width);
+		int y = rg.getRandom(0, height);
+		std::pair<int, int> candidate = {x, y};
+		if (blocked.find(candidate) == blocked.end())
+		{
+			return FVector(x * 100.f, y * 100.f, 0.f);
 		}
-		for (const auto& interior : room.getInteriorWalls()) {
-			blocked.insert(interior);
-		}
-
-		// Try random attempts first (faster if map is mostly open)
-		const int maxAttempts = 1000;
-		for (int attempt = 0; attempt < maxAttempts; ++attempt) {
-			int x = rg.getRandom(1, width - 1);
-			int y = rg.getRandom(1, height - 1);
-			std::pair<int, int> candidate = {x, y};
-			if (blocked.find(candidate) == blocked.end()) {
-				return FVector(x * 100.f, y * 100.f, 0.f);
-			}
-		}
-
-		// Fallback: build list of valid positions
-		std::vector<std::pair<int, int>> validPoints;
-		for (uint32 x = 0; x <= width; ++x) {
-			for (uint32 y = 0; y <= height; ++y) {
-				std::pair<int, int> p = {x, y};
-				if (blocked.find(p) == blocked.end()) {
-					validPoints.push_back(p);
-				}
-			}
-		}
-
-		auto chosen = validPoints[rg.getRandom(0, static_cast<int>(validPoints.size()) - 1)];
-		return FVector(chosen.first * 100.f, chosen.second * 100.f, 0.f);
 	}
+
+	// Fallback: build list of valid positions
+	std::vector<std::pair<int, int>> validPoints;
+	for (uint32 x = 0; x <= width; ++x)
+	{
+		for (uint32 y = 0; y <= height; ++y)
+		{
+			std::pair<int, int> p = {x, y};
+			if (blocked.find(p) == blocked.end())
+			{
+				validPoints.push_back(p);
+			}
+		}
+	}
+
+	auto chosen = validPoints[rg.getRandom(0, static_cast<int>(validPoints.size()) - 1)];
+	return FVector(chosen.first * 100.f, chosen.second * 100.f, 0.f);
 }
 
 void ARoom::build(UWorld* world)
@@ -190,16 +190,16 @@ void ARoom::build(UWorld* world)
 
 	std::vector classes = {enemy, chest};
 
-	if (rg.getRandom(0,10) > 8)
+	if (rg.getRandom(0, 10) > 8)
 	{
 		classes.push_back(exit);
 	}
-	
+
 	for (auto classToSpawn : classes)
 	{
 		FVector offset = getRandomValidPosition();
 		FVector result = FVector(spawnPos.X + offset.X, spawnPos.Y + offset.Y, 0.f);
-	
+
 		enemies.push_back(spawnActor(world, classToSpawn, &result));
 	}
 }
@@ -213,7 +213,7 @@ AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 	{
 		spawnAlt = 109.f;
 	}
-	
+
 	FVector spawnLocation(location->X, location->Y, spawnAlt);
 	FTransform spawnTransform = FTransform(spawnLocation);
 
@@ -226,7 +226,7 @@ AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 
 		return spawnedEnemy;
 	}
-	
+
 	UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor."));
 	return nullptr;
 }
@@ -285,7 +285,7 @@ void ARoom::init(const RoomImpl& roomRef, RandomGenerator& rgRef, UClass* enemyR
 	width = roomRef.getWidth();
 	height = roomRef.getHeight();
 	alt = rgRef.getRandom(4, 7);
-	
+
 	//moved from OnConstruction
 	if (room.getDoors().size() == 0)
 	{
