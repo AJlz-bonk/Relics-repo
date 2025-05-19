@@ -12,6 +12,6 @@ class RELICS_API USpawnHelper : public UBlueprintFunctionLibrary
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Generator stuff")
-	static AActor* SpawnActorInSameLevel(UObject* worldContextObject, TSubclassOf<AActor> actorClass, FTransform spawnTransform);
+	static AActor* SpawnGeneratorInLevel(UObject* worldContextObject, TSubclassOf<AActor> actorClass, FTransform spawnTransform, int32 size, int32 room_min, int32 room_max, int32 gap, int32 seed);
 	
 };

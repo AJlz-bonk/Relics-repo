@@ -153,8 +153,8 @@ FVector ARoom::getRandomValidPosition()
 		// Try random attempts first (faster if map is mostly open)
 		const int maxAttempts = 1000;
 		for (int attempt = 0; attempt < maxAttempts; ++attempt) {
-			int x = rg.getRandom(0, width);
-			int y = rg.getRandom(0, height);
+			int x = rg.getRandom(1, width - 1);
+			int y = rg.getRandom(1, height - 1);
 			std::pair<int, int> candidate = {x, y};
 			if (blocked.find(candidate) == blocked.end()) {
 				return FVector(x * 100.f, y * 100.f, 0.f);
@@ -207,7 +207,14 @@ void ARoom::build(UWorld* world)
 AActor* ARoom::spawnActor(UWorld* world, UClass* actorType, FVector* location)
 {
 	TArray<AActor*> tempEnemies;
-	FVector spawnLocation(location->X, location->Y, 109.f);
+
+	float spawnAlt = 0;
+	if (actorType == enemy)
+	{
+		spawnAlt = 109.f;
+	}
+	
+	FVector spawnLocation(location->X, location->Y, spawnAlt);
 	FTransform spawnTransform = FTransform(spawnLocation);
 
 	// Spawn the actor.

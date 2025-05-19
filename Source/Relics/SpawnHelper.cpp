@@ -1,11 +1,14 @@
 ﻿#include "SpawnHelper.h"
+
+#include "Generator.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/GameplayStatics.h"
 
-AActor* USpawnHelper::SpawnActorInSameLevel(UObject* worldContextObject, TSubclassOf<AActor> actorClass,
-                                            FTransform spawnTransform)
+AActor* USpawnHelper::SpawnGeneratorInLevel(UObject* worldContextObject, TSubclassOf<AActor> actorClass,
+                                            FTransform spawnTransform, int32 size, int32 room_min, int32 room_max,
+                                            int32 gap, int32 seed)
 {
 	if (!worldContextObject || !actorClass)
 	{
@@ -34,5 +37,14 @@ AActor* USpawnHelper::SpawnActorInSameLevel(UObject* worldContextObject, TSubcla
 	spawnParams.OverrideLevel = owningLevel;
 	spawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	return world->SpawnActor<AActor>(actorClass, spawnTransform, spawnParams);
+	AActor* actor = world->SpawnActor<AActor>(actorClass, spawnTransform, spawnParams);
+	if (actor)
+	{
+		AGenerator* generator = Cast<AGenerator>(actor);
+		if (generator)
+		{
+			generator->init(size, room_min, room_max, gap, seed);
+		}
+	}
+	return actor;
 }

@@ -65,6 +65,15 @@ void AGenerator::buildNavMesh()
 	}
 }
 
+void AGenerator::init(int32 tSize, int32 tRoom_min, int32 tRoom_max, int32 tGap, int32 tSeed)
+{
+	size = tSize;
+	room_min = tRoom_min;
+	room_max = tRoom_max;
+	gap = tGap;
+	seed = tSeed;
+}
+
 ARoom* AGenerator::build(UWorld* world, RandomGenerator& rg, const RoomImpl& room)
 {
 	unsigned int row = room.getRow();
@@ -182,11 +191,6 @@ void AGenerator::buildDungeon()
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
 	buildNavMesh();
-}
-
-void AGenerator::OnConstruction(const FTransform& Transform)
-{
-	Super::OnConstruction(Transform);
 }
 
 void AGenerator::BeginDestroy()
