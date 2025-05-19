@@ -3,7 +3,8 @@
 #include "GeneratorImpl.h"
 #include "NavigationSystem.h"
 #include "Room.h"
-#include "Components/BoxComponent.h"
+#include "EngineUtils.h"
+#include "Components/BrushComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
@@ -22,6 +23,60 @@ void AGenerator::buildBasePlate()
 	blocks->AddInstance(FTransform(transformMatrix));
 }
 
+void UpdateNavMeshBoundsVolume(UWorld* World, FVector Location, FVector Extent)
+{
+	if (!World) return;
+
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!NavSys) return;
+
+	ANavMeshBoundsVolume* NavBoundsVolume = nullptr;
+
+	// Check for existing NavMeshBoundsVolume
+	for (TActorIterator<ANavMeshBoundsVolume> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		NavBoundsVolume = *ActorItr;
+		break;
+	}
+
+	if (!NavBoundsVolume)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = nullptr;
+		SpawnParams.Instigator = nullptr;
+		NavBoundsVolume = World->SpawnActor<ANavMeshBoundsVolume>(Location, FRotator::ZeroRotator, SpawnParams);
+	}
+
+	if (NavBoundsVolume)
+	{
+		NavBoundsVolume->SetActorLocation(Location);
+
+		UBrushComponent* Brush = NavBoundsVolume->GetBrushComponent();
+		if (Brush)
+		{
+			// Set mobility so the bounds can be updated at runtime
+			Brush->SetMobility(EComponentMobility::Movable);
+
+			// Set box extent — this is what actually defines the nav area
+			//Brush->SetBoxExtent(Extent); DOESN'T EXIXST LOL
+			Brush->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		// Notify the nav system of bounds update
+		NavSys->OnNavigationBoundsUpdated(NavBoundsVolume);
+	}
+}
+
+// Example usage (e.g., in an Actor's BeginPlay or a custom function)
+void AGenerator::buildNavMesh()
+{
+	FVector NavLocation = FVector(size / 2.f * 100.f, size / 2.f * 100.f, 250.f);
+	FVector NavExtent = FVector(size / 2.f * 100.f, size / 2.f * 100.f, 250.0f);
+
+	UpdateNavMeshBoundsVolume(GetWorld(), NavLocation, NavExtent);
+}
+
+/*
 void AGenerator::buildNavMesh()
 {
 	UWorld* World = GetWorld();
@@ -64,6 +119,7 @@ void AGenerator::buildNavMesh()
 		}
 	}
 }
+*/
 
 void AGenerator::init(int32 tSize, int32 tRoom_min, int32 tRoom_max, int32 tGap, int32 tSeed)
 {
@@ -190,7 +246,7 @@ void AGenerator::buildDungeon()
 	{
 		rooms.push_back(build(world, generator.getRandomGenerator(), room));
 	}
-	buildNavMesh();
+	//buildNavMesh();
 }
 
 void AGenerator::BeginDestroy()
